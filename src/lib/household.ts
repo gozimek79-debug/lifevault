@@ -1,3 +1,4 @@
+import { ensureCreditAccount } from './credits'
 import { getSupabase, supabaseConfigured } from './supabase'
 import { enqueueJob, getHousehold, listMembers, putHousehold, putMember } from './db'
 import type { HouseholdMember, Session } from './types'
@@ -58,6 +59,7 @@ export async function ensureRemoteHousehold(userId: string, email: string): Prom
   } else {
     for (const row of rows) await putMember(mapMember(row))
   }
+  await ensureCreditAccount(householdId).catch(() => undefined)
   return householdId
 }
 

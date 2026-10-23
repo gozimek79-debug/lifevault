@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { bytesToHex } from '../lib/codec'
 import { bindConsent } from '../lib/consent'
+import { ensureCreditAccount } from '../lib/credits'
 import { getDemoUsers, getHousehold, putDemoUsers, putHousehold, putMember } from '../lib/db'
 import { ensureRemoteHousehold } from '../lib/household'
 import { getSupabase, supabaseConfigured } from '../lib/supabase'
@@ -199,6 +200,7 @@ async function createDemoUser(email: string, passwordHash: string, users: DemoUs
     createdAt: now,
   })
   await putDemoUsers([...users, user])
+  await ensureCreditAccount(user.householdId)
   return user
 }
 

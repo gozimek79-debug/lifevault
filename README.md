@@ -1,6 +1,6 @@
 # LifeVault – Cichy Asystent Domu i Firmy
 
-Etap 1 to **Home Vault**: skan faktury, paragonu albo gwarancji, odczyt pól, sejf na urządzeniu i przypomnienia 30, 7 i 1 dzień przed końcem gwarancji. Aplikacja jest mobilną PWA. Firma (Micro-Ops) i czytnik dokumentów są podpięte jako osobne, leniwe moduły i na tym etapie pokazują „wkrótce”.
+**Home Vault** skanuje fakturę, paragon albo gwarancję, trzyma plik w sejfie i przypomina 30, 7 i 1 dzień przed końcem gwarancji. **Czytnik dokumentów** bierze zdjęcie albo PDF, tłumaczy go prostym językiem i składa szkic odpowiedzi. Aplikacja jest mobilną PWA. Firma (Micro-Ops) jest osobnym, leniwym modułem i na tym etapie pokazuje „wkrótce”.
 
 Nie ma Stripe, programu partnerskiego ani zadań głosowych. W schemacie SQL są tylko puste kolumny na później.
 
@@ -22,7 +22,7 @@ npm run build
 npm run preview
 ```
 
-`npm test` sprawdza parser pól i daty przypomnień. `npm run build` odpala ścisły `tsc -b` i buduje PWA.
+`npm test` sprawdza parser pól, daty przypomnień, odjęcie kredytu i złożenie flag z JSON modelu. `npm run build` odpala ścisły `tsc -b` i buduje PWA.
 
 Skopiuj `.env.example` do `.env`, gdy chcesz podłączyć chmurę. Pliku `.env` nie commitujemy. Bez żadnych kluczy aplikacja działa w trybie demo.
 
@@ -34,7 +34,8 @@ Przeglądarka widzi tylko nazwy `VITE_`. Klucze modeli nie mają tego przedrostk
 | --- | --- | --- |
 | `VITE_SUPABASE_URL` | przeglądarka | Adres projektu. Pusta = demo. |
 | `VITE_SUPABASE_ANON_KEY` | przeglądarka | Klucz anon. Oba pola muszą być ustawione, inaczej zostaje demo. |
-| `VITE_EXTRACT_FUNCTION_URL` | przeglądarka | Adres funkcji `extract-document`. Pusty = Tesseract w przeglądarce. |
+| `VITE_EXTRACT_FUNCTION_URL` | przeglądarka | Adres funkcji `extract-document`. Pusty = Tesseract w przeglądarce. Czytnik użyje jej też, gdy nie ma osobnego adresu analizy. |
+| `VITE_AI_EXTRACT_URL` | przeglądarka | Opcjonalny adres analizy czytnika. Pusty = `VITE_EXTRACT_FUNCTION_URL`, a bez obu heurystyki na urządzeniu. |
 | `VITE_MANUAL_SEARCH_API_URL` | przeglądarka | Opcjonalne API, które zwraca JSON `{ "url": "https://..." }`. |
 | `VITE_VAPID_PUBLIC_KEY` | przeglądarka | Publiczny klucz Web Push. Pusty = tylko lokalne powiadomienia. |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | sekrety funkcji | Nigdy w Vite. |
@@ -72,6 +73,27 @@ Tak działa ekran Dom, nie makieta:
 
 Pierwszy odczyt Tesseracta ściąga dane językowe (hosty cache’owane przez service worker). Po tym odczyt obrazu działa offline. Całkowicie offline za pierwszym razem formularz i tak da się wypełnić ręcznie.
 
+## Przepływ czytnika dokumentów
+
+Tak działa kafelek **Dokumenty**, nie makieta. Dom zostaje bez zmian.
+
+1. Na pulpicie otwierasz **Dokumenty**. Na górze widać saldo kredytów.
+2. Wybierasz język analizy: polski, angielski, ukraiński albo niemiecki. To nie jest język przycisków. Przyciski zostają po polsku albo angielsku z ustawień. Wybór zostaje w tej przeglądarce.
+3. Robisz zdjęcie albo wskazujesz obraz albo PDF.
+4. Widzisz podgląd. **Analizuj** kosztuje 1 kredyt. Przy zerze zamiast analizy jest ekran „Brak kredytów”.
+5. Gdy ustawisz `VITE_AI_EXTRACT_URL` albo `VITE_EXTRACT_FUNCTION_URL`, jest sieć i plik ma do 8 MB, aplikacja prosi model o JSON: streszczenie, słownik (słowo i zwykłe wyjaśnienie), czerwone flagi (cytat, dlaczego to ważne, waga, opcjonalna ramka 0–1 na stronie) i szkic odpowiedzi. Język tego JSON to język z kroku 2. Klucz modelu zostaje w funkcji. Stary tryb faktury w `extract-document` nie zmienia się: czytnik wysyła `purpose: "reader"`.
+6. Bez adresu, offline albo gdy model nie odda czytelnego JSON, obraz idzie do tesseract.js (`pol+eng`). PDF bez modelu: aplikacja wyciąga tekst z nieskompresowanych napisów w pliku. Potem lokalne reguły szukają terminów, kar, kwot i akapitów w innym języku. Taki wynik nie ma ramek na stronie.
+7. Podgląd obrazu rysuje kolorowe markery tam, gdzie flaga ma ramkę (wysoka czerwień, średnia bursztyn, niska zieleń). Flaga bez ramki i tak jest na liście, a jej cytat jest zaznaczony w panelu tekstu.
+8. Szkic odpowiedzi da się poprawić. **Pobierz PDF** i **Szkic e-mail** działają tak jak przy dokumencie w domu.
+
+## Kredyty
+
+Jedna analiza kosztuje **1** kredyt. Nowe gospodarstwo demo startuje z **3**. Gospodarstwo założone wcześniej dostaje te 3 przy pierwszym otwarciu czytnika, raz. Przy **0** analiza nie startuje: widać ekran braku kredytów.
+
+**Dokup kredyty** w demo dopisuje pakiet testowy **5** kredytów. Obok przycisku jest wprost: płatność nie działa, nie ma Stripe i nie ma prawdziwej opłaty. Aplikacja nie woła Stripe.
+
+Saldo jest na gospodarstwo. Lokalnie leży w IndexedDB (konta i księga). W Postgresie są tabele `credit_accounts` i `credit_ledger` oraz funkcje `ensure_credit_account`, `spend_analysis_credit`, `grant_test_pack` i `refund_analysis_credit`. Zapis idzie przez te funkcje. Członek widzi tylko swoje gospodarstwo. Gdy analiza padnie po pobraniu kredytu, kredyt wraca. Drugi zwrot z rzędu nic nie dodaje.
+
 ## Model klucza
 
 - Hasło sejfu jest tylko argumentem funkcji na czas wyprowadzenia klucza. Nie zapisujemy go w `localStorage`, IndexedDB, logach ani w żądaniach.
@@ -83,12 +105,12 @@ Pierwszy odczyt Tesseracta ściąga dane językowe (hosty cache’owane przez se
 
 ## Co działa od razu, a co czeka
 
-Działa bez kluczy: zgoda, demo logowanie, hasło sejfu, skan, Tesseract i parser, formularz, szyfrowany zapis, lista, szukanie lokalne, przypomnienia 30/7/1, ICS, link do Kalendarza Google, PDF, szkic e-mail, zgłoszenie usterki, rodzina zapisana lokalnie, motyw, język, skala tekstu, PWA.
+Działa bez kluczy: zgoda, demo logowanie, hasło sejfu, skan, Tesseract i parser, formularz, szyfrowany zapis, lista, szukanie lokalne, przypomnienia 30/7/1, ICS, link do Kalendarza Google, PDF, szkic e-mail, zgłoszenie usterki, rodzina zapisana lokalnie, motyw, język, skala tekstu, PWA, czytnik dokumentów (Tesseract i heurystyki, 3 kredyty na start, pakiet testowy bez płatności).
 
 Czeka na konfigurację:
 
 - Supabase: prawdziwe konto e-mail i Google, gospodarstwo w Postgresie, zaproszenie jako wiersz, synchronizacja szyfrogramu i pól, indeks pełnotekstowy.
-- `extract-document` oraz klucz OpenAI albo Anthropic: odczyt wizyjny po stronie serwera. PDF funkcja odsyła do ręcznego uzupełnienia.
+- `extract-document` oraz klucz OpenAI albo Anthropic: odczyt wizyjny faktury po stronie serwera. PDF w trybie faktury funkcja odsyła do ręcznego uzupełnienia. Ten sam adres z `purpose: "reader"` (albo `VITE_AI_EXTRACT_URL`) oddaje streszczenie, flagi i szkic w wybranym języku.
 - `VITE_MANUAL_SEARCH_API_URL`: adres instrukcji z Twojego API. Bez tego jest tylko link wyszukiwania i własny plik.
 - `VITE_VAPID_PUBLIC_KEY`: subskrypcja Web Push. Bez niej zostają lokalne powiadomienia w service workerze.
 - Wysyłka e-maila zaproszenia: nie ma jej w tym etapie.

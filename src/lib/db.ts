@@ -22,6 +22,22 @@ interface MetaValueMap {
   push: PushRecord
 }
 
+export type CreditReason = 'welcome' | 'analysis' | 'test-pack' | 'refund'
+
+export interface CreditAccountRow {
+  householdId: string
+  balance: number
+  updatedAt: string
+}
+
+export interface CreditLedgerRow {
+  id: string
+  householdId: string
+  delta: number
+  reason: CreditReason
+  createdAt: string
+}
+
 interface LifeVaultSchema extends DBSchema {
   documents: {
     key: string
@@ -42,32 +58,60 @@ interface LifeVaultSchema extends DBSchema {
   consents: { key: string; value: ConsentRecord }
   queue: { key: string; value: SyncJob }
   meta: { key: string; value: MetaValueMap[keyof MetaValueMap] }
+  credits: { key: string; value: CreditAccountRow }
+  creditLedger: {
+    key: string
+    value: CreditLedgerRow
+    indexes: { 'by-household': string }
+  }
 }
 
 const DB_NAME = 'lifevault'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let opening: Promise<IDBPDatabase<LifeVaultSchema>> | null = null
 
 function database(): Promise<IDBPDatabase<LifeVaultSchema>> {
   if (!opening) {
     opening = openDB<LifeVaultSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const documents = db.createObjectStore('documents', { keyPath: 'id' })
-        documents.createIndex('by-household', 'householdId')
-        const reminders = db.createObjectStore('reminders', { keyPath: 'id' })
-        reminders.createIndex('by-household', 'householdId')
-        reminders.createIndex('by-document', 'documentId')
-        const members = db.createObjectStore('members', { keyPath: 'id' })
-        members.createIndex('by-household', 'householdId')
-        db.createObjectStore('households', { keyPath: 'id' })
-        db.createObjectStore('consents', { keyPath: 'id' })
-        db.createObjectStore('queue', { keyPath: 'id' })
-        db.createObjectStore('meta')
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const documents = db.createObjectStore('documents', { keyPath: 'id' })
+          documents.createIndex('by-household', 'householdId')
+          const reminders = db.createObjectStore('reminders', { keyPath: 'id' })
+          reminders.createIndex('by-household', 'householdId')
+          reminders.createIndex('by-document', 'documentId')
+          const members = db.createObjectStore('members', { keyPath: 'id' })
+          members.createIndex('by-household', 'householdId')
+          db.createObjectStore('households', { keyPath: 'id' })
+          db.createObjectStore('consents', { keyPath: 'id' })
+          db.createObjectStore('queue', { keyPath: 'id' })
+          db.createObjectStore('meta')
+        }
+        if (oldVersion < 2) {
+          if (!db.objectStoreNames.contains('credits')) {
+            db.createObjectStore('credits', { keyPath: 'householdId' })
+          }
+          if (!db.objectStoreNames.contains('creditLedger')) {
+            const ledger = db.createObjectStore('creditLedger', { keyPath: 'id' })
+            ledger.createIndex('by-household', 'householdId')
+          }
+        }
+      },
+      blocking() {
+        void opening?.then((db) => {
+          db.close()
+          opening = null
+        })
       },
     })
   }
   return opening
+}
+
+/** Księga kredytów czytnika korzysta z tej samej bazy, bez drugiego połączenia. */
+export function lifeVaultDb(): Promise<IDBPDatabase<LifeVaultSchema>> {
+  return database()
 }
 
 export async function listDocuments(householdId: string): Promise<VaultDocument[]> {
