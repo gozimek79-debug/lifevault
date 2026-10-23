@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+.env
+.env.local
+.env.*.local
+*.log
+coverage
+.DS_Store
+node_modules/.tmp
