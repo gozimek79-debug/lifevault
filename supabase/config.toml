@@ -1,0 +1,7 @@
+# Stripe woła webhook bez sesji użytkownika. Podpis sprawdza sama funkcja.
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.stripe-checkout]
+verify_jwt = true

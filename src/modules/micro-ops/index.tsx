@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../../app/auth'
 import { useI18n } from '../../i18n/context'
-import { listOpsPeople, listOpsTasks } from '../../lib/db'
+import { getHousehold, listOpsPeople, listOpsTasks } from '../../lib/db'
 import { addTaskFromPhrase, cycleOpsTask } from '../../lib/ops'
+import { PLAN_LIMITS, householdPlan, type PlanId } from '../../lib/plans'
 import type { OpsPerson, OpsTask, OpsTaskStatus } from '../../lib/types'
 import { ActionRow, PageIntro } from '../../components/chrome'
 import { DeliveryPanel } from './DeliveryPanel'
@@ -34,6 +35,7 @@ export default function MicroOpsModule() {
   const [view, setView] = useState<'tasks' | 'delivery'>('tasks')
   const [tasks, setTasks] = useState<OpsTask[]>([])
   const [people, setPeople] = useState<OpsPerson[]>([])
+  const [plan, setPlan] = useState<PlanId>('solo')
   const [draft, setDraft] = useState('')
   const [hint, setHint] = useState<string | null>(null)
   const [listening, setListening] = useState(false)
@@ -44,10 +46,11 @@ export default function MicroOpsModule() {
   useEffect(() => {
     if (!session) return
     let cancelled = false
-    void reload(session.householdId, (nextTasks, nextPeople) => {
+    void reload(session.householdId, (nextTasks, nextPeople, nextPlan) => {
       if (cancelled) return
       setTasks(nextTasks)
       setPeople(nextPeople)
+      setPlan(nextPlan)
     })
     return () => {
       cancelled = true
@@ -64,15 +67,16 @@ export default function MicroOpsModule() {
       return
     }
     const added = await addTaskFromPhrase(session.householdId, session.userId, trimmed)
-    if (!added) {
-      setHint(t('opsNeedTitle'))
+    if (!added.ok) {
+      setHint(added.reason === 'plan' ? t(plan === 'company' ? 'opsAssigneeFull' : 'opsAssigneeLock') : t('opsNeedTitle'))
       return
     }
     setHint(null)
     setDraft('')
-    await reload(session.householdId, (nextTasks, nextPeople) => {
+    await reload(session.householdId, (nextTasks, nextPeople, nextPlan) => {
       setTasks(nextTasks)
       setPeople(nextPeople)
+      setPlan(nextPlan)
     })
   }
 
@@ -81,9 +85,10 @@ export default function MicroOpsModule() {
     cycling.current.add(task.id)
     try {
       await cycleOpsTask(task)
-      await reload(session.householdId, (nextTasks, nextPeople) => {
+      await reload(session.householdId, (nextTasks, nextPeople, nextPlan) => {
         setTasks(nextTasks)
         setPeople(nextPeople)
+        setPlan(nextPlan)
       })
     } finally {
       cycling.current.delete(task.id)
@@ -107,6 +112,8 @@ export default function MicroOpsModule() {
   }
 
   const names = new Map(people.map((person) => [person.id, person.name]))
+  const assigneeCount = new Set(tasks.map((task) => task.personId).filter((id): id is string => Boolean(id))).size
+  const assigneeLocked = PLAN_LIMITS[plan].assignees === 1 || assigneeCount >= PLAN_LIMITS[plan].assignees
 
   return (
     <div className="flex flex-col gap-6">
@@ -146,6 +153,7 @@ export default function MicroOpsModule() {
                 {t('opsAdd')}
               </button>
             </div>
+            {assigneeLocked ? <p className="text-sm text-stone-600 dark:text-stone-400">{t(plan === 'company' ? 'opsAssigneeFull' : 'opsAssigneeLock')}</p> : null}
           </div>
           {canSpeak ? (
             <ActionRow hint={t('voiceHint')}>
@@ -207,8 +215,12 @@ function syncKey(state: OpsTask['syncState']): 'syncPending' | 'syncSynced' | 's
 
 async function reload(
   householdId: string,
-  apply: (tasks: OpsTask[], people: OpsPerson[]) => void,
+  apply: (tasks: OpsTask[], people: OpsPerson[], plan: PlanId) => void,
 ): Promise<void> {
-  const [nextTasks, nextPeople] = await Promise.all([listOpsTasks(householdId), listOpsPeople(householdId)])
-  apply(nextTasks, nextPeople)
+  const [nextTasks, nextPeople, household] = await Promise.all([
+    listOpsTasks(householdId),
+    listOpsPeople(householdId),
+    getHousehold(householdId),
+  ])
+  apply(nextTasks, nextPeople, householdPlan(household))
 }

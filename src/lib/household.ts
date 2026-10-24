@@ -1,6 +1,7 @@
 import { ensureCreditAccount } from './credits'
 import { getSupabase, supabaseConfigured } from './supabase'
 import { enqueueJob, getHousehold, listMembers, putHousehold, putMember } from './db'
+import { canInvite, householdPlan } from './plans'
 import type { HouseholdMember, Session } from './types'
 
 interface MemberRow {
@@ -37,12 +38,13 @@ export async function ensureRemoteHousehold(userId: string, email: string): Prom
     if (created.error || typeof created.data !== 'string') throw new Error('household')
     householdId = created.data
   }
-  const household = await supabase.from('households').select('id, name, created_at').eq('id', householdId).maybeSingle()
-  const householdRow = household.data as { name?: string; created_at?: string } | null
+  const household = await supabase.from('households').select('id, name, created_at, plan').eq('id', householdId).maybeSingle()
+  const householdRow = household.data as { name?: string; created_at?: string; plan?: string } | null
   await putHousehold({
     id: householdId,
     name: householdRow?.name ?? 'Dom',
     createdAt: householdRow?.created_at ?? new Date().toISOString(),
+    plan: householdPlan(householdRow),
   })
   const members = await supabase.from('household_members').select('*').eq('household_id', householdId)
   const rows = (members.data ?? []) as MemberRow[]
@@ -80,6 +82,8 @@ export async function inviteByEmail(session: Session, email: string): Promise<'d
   if (normalized === session.email.toLowerCase()) throw new Error('self')
   const existing = await listMembers(session.householdId)
   if (existing.some((member) => member.email.toLowerCase() === normalized)) throw new Error('exists')
+  const household = await getHousehold(session.householdId)
+  if (!canInvite(householdPlan(household), existing.length)) throw new Error('plan')
   const member: HouseholdMember = {
     id: crypto.randomUUID(),
     householdId: session.householdId,

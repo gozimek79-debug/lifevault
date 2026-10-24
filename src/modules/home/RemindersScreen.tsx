@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../app/auth'
-import { getPush, listReminders } from '../../lib/db'
+import { getPush, listDocuments, listReminders } from '../../lib/db'
+import { compareOffersUrl } from '../../lib/checkout'
+import { isPartnerPolicy } from '../../lib/policy'
 import { googleCalendarUrl, remindersToIcs } from '../../lib/calendar'
 import { downloadBlob } from '../../lib/download'
 import { enableReminders, scheduleStoredReminders } from '../../lib/notifications'
@@ -15,10 +17,15 @@ export function RemindersScreen({ onBack }: { onBack: () => void }) {
   const [rows, setRows] = useState<Reminder[]>([])
   const [push, setPush] = useState<PushRecord | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [policyIds, setPolicyIds] = useState<Set<string>>(new Set())
+  const compareUrl = compareOffersUrl()
 
   useEffect(() => {
     if (!session) return
     void listReminders(session.householdId).then(setRows)
+    void listDocuments(session.householdId).then((docs) => {
+      setPolicyIds(new Set(docs.filter((doc) => isPartnerPolicy(doc)).map((doc) => doc.id)))
+    })
     void getPush(session.userId).then(setPush)
     void scheduleStoredReminders(session.householdId, reminderCopy(t))
   }, [session, t])
@@ -73,6 +80,13 @@ export function RemindersScreen({ onBack }: { onBack: () => void }) {
             <span>{t('daysBefore', { days: String(row.daysBefore) })}</span>
             <span>{t('warrantyEnds', { date: row.dueOn })}</span>
             <span>{row.remindOn}</span>
+            {compareUrl && policyIds.has(row.documentId) ? (
+              <ActionRow hint={t('compareOffersHint')}>
+                <a className="tap-ghost" href={compareUrl} target="_blank" rel="noreferrer sponsored">
+                  {t('compareOffers')}
+                </a>
+              </ActionRow>
+            ) : null}
             <ActionRow hint={t('calendarHint')}>
             <a
               className="tap-ghost"

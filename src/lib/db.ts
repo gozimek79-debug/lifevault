@@ -25,7 +25,7 @@ interface MetaValueMap {
   push: PushRecord
 }
 
-export type CreditReason = 'welcome' | 'analysis' | 'test-pack' | 'refund'
+export type CreditReason = 'welcome' | 'analysis' | 'test-pack' | 'refund' | 'plan' | 'pack'
 
 export interface CreditAccountRow {
   householdId: string

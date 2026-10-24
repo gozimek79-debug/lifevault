@@ -1,0 +1,47 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches: [lifevault-etap-4]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:pages
+      - name: Publish gh-pages
+        run: |
+          set -euo pipefail
+          cp -a dist /tmp/lifevault-dist
+          git checkout --orphan gh-pages-publish
+          git rm -rf .
+          git clean -fdx
+          cp -a /tmp/lifevault-dist/. .
+          test -f index.html && test -f 404.html && test -f .nojekyll
+          test ! -e node_modules
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Publish LifeVault pages"
+          git push --force origin HEAD:gh-pages
+      - name: Enable GitHub Pages
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          body='{"source":{"branch":"gh-pages","path":"/"}}'
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" > /tmp/pages.json; then
+            printf '%s' "$body" | gh api -X PUT "repos/${GITHUB_REPOSITORY}/pages" --input -
+          else
+            printf '%s' "$body" | gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" --input -
+          fi

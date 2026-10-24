@@ -8,6 +8,8 @@ interface ImportMetaEnv {
   readonly VITE_AI_EXTRACT_URL?: string
   readonly VITE_MANUAL_SEARCH_API_URL?: string
   readonly VITE_VAPID_PUBLIC_KEY?: string
+  readonly VITE_STRIPE_CHECKOUT_URL?: string
+  readonly VITE_COMPARE_OFFERS_URL?: string
 }
 
 interface ImportMeta {

@@ -75,7 +75,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: '/icon-192.png',
+      icon: new URL('icon-192.png', self.registration.scope).href,
       lang: 'pl',
     }),
   )
@@ -133,7 +133,7 @@ async function show(rows: ScheduledReminder[]): Promise<void> {
     await markShown(row.id)
     await self.registration.showNotification(row.title, {
       body: row.body,
-      icon: '/icon-192.png',
+      icon: new URL('icon-192.png', self.registration.scope).href,
       lang: 'pl',
       tag: row.id,
     })

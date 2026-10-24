@@ -1,5 +1,6 @@
 import type { EncryptedPayload, EncryptionMeta } from './crypto-vault'
 import type { DocumentType } from './parse-document'
+import type { PlanId } from './plans'
 import type { ReminderOffset } from './reminder-dates'
 
 export interface Session {
@@ -13,6 +14,8 @@ export interface Household {
   id: string
   name: string
   createdAt: string
+  /** Brak pola w starym zapisie oznacza plan Solo. */
+  plan?: PlanId
 }
 
 export interface HouseholdMember {
