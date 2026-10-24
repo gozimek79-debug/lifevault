@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'LifeVault – Cichy Asystent Domu i Firmy',
         short_name: 'LifeVault',
-        description: 'Cichy asystent domu i firmy: dokumenty, gwarancje, przypomnienia.',
+        description: 'Cichy asystent domu i firmy: dokumenty, gwarancje, zadania i odbiór dostawy.',
         theme_color: '#115e59',
         background_color: '#f5f5f4',
         display: 'standalone',

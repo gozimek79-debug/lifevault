@@ -7,6 +7,9 @@ import type {
   PushRecord,
   Reminder,
   SyncJob,
+  OpsOrder,
+  OpsPerson,
+  OpsTask,
   VaultDocument,
   VaultRecord,
 } from './types'
@@ -64,10 +67,25 @@ interface LifeVaultSchema extends DBSchema {
     value: CreditLedgerRow
     indexes: { 'by-household': string }
   }
+  opsPeople: {
+    key: string
+    value: OpsPerson
+    indexes: { 'by-household': string }
+  }
+  opsTasks: {
+    key: string
+    value: OpsTask
+    indexes: { 'by-household': string }
+  }
+  opsOrders: {
+    key: string
+    value: OpsOrder
+    indexes: { 'by-household': string }
+  }
 }
 
 const DB_NAME = 'lifevault'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 let opening: Promise<IDBPDatabase<LifeVaultSchema>> | null = null
 
@@ -95,6 +113,20 @@ function database(): Promise<IDBPDatabase<LifeVaultSchema>> {
           if (!db.objectStoreNames.contains('creditLedger')) {
             const ledger = db.createObjectStore('creditLedger', { keyPath: 'id' })
             ledger.createIndex('by-household', 'householdId')
+          }
+        }
+        if (oldVersion < 3) {
+          if (!db.objectStoreNames.contains('opsPeople')) {
+            const people = db.createObjectStore('opsPeople', { keyPath: 'id' })
+            people.createIndex('by-household', 'householdId')
+          }
+          if (!db.objectStoreNames.contains('opsTasks')) {
+            const tasks = db.createObjectStore('opsTasks', { keyPath: 'id' })
+            tasks.createIndex('by-household', 'householdId')
+          }
+          if (!db.objectStoreNames.contains('opsOrders')) {
+            const orders = db.createObjectStore('opsOrders', { keyPath: 'id' })
+            orders.createIndex('by-household', 'householdId')
           }
         }
       },
@@ -243,4 +275,52 @@ export async function getPush(userId: string): Promise<PushRecord | null> {
 export async function putPush(record: PushRecord): Promise<void> {
   const db = await database()
   await db.put('meta', record, `push:${record.userId}`)
+}
+
+export async function listOpsPeople(householdId: string): Promise<OpsPerson[]> {
+  const db = await database()
+  const rows = await db.getAllFromIndex('opsPeople', 'by-household', householdId)
+  return rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.name.localeCompare(b.name))
+}
+
+export async function getOpsPerson(id: string): Promise<OpsPerson | null> {
+  const db = await database()
+  return (await db.get('opsPeople', id)) ?? null
+}
+
+export async function putOpsPerson(person: OpsPerson): Promise<void> {
+  const db = await database()
+  await db.put('opsPeople', person)
+}
+
+export async function listOpsTasks(householdId: string): Promise<OpsTask[]> {
+  const db = await database()
+  const rows = await db.getAllFromIndex('opsTasks', 'by-household', householdId)
+  return rows.sort((a, b) => (a.dueAt ?? '9999').localeCompare(b.dueAt ?? '9999') || b.createdAt.localeCompare(a.createdAt))
+}
+
+export async function getOpsTask(id: string): Promise<OpsTask | null> {
+  const db = await database()
+  return (await db.get('opsTasks', id)) ?? null
+}
+
+export async function putOpsTask(task: OpsTask): Promise<void> {
+  const db = await database()
+  await db.put('opsTasks', task)
+}
+
+export async function listOpsOrders(householdId: string): Promise<OpsOrder[]> {
+  const db = await database()
+  const rows = await db.getAllFromIndex('opsOrders', 'by-household', householdId)
+  return rows.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export async function getOpsOrder(id: string): Promise<OpsOrder | null> {
+  const db = await database()
+  return (await db.get('opsOrders', id)) ?? null
+}
+
+export async function putOpsOrder(order: OpsOrder): Promise<void> {
+  const db = await database()
+  await db.put('opsOrders', order)
 }

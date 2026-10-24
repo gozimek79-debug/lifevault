@@ -1,8 +1,8 @@
 # LifeVault – Cichy Asystent Domu i Firmy
 
-**Home Vault** skanuje fakturę, paragon albo gwarancję, trzyma plik w sejfie i przypomina 30, 7 i 1 dzień przed końcem gwarancji. **Czytnik dokumentów** bierze zdjęcie albo PDF, tłumaczy go prostym językiem i składa szkic odpowiedzi. Aplikacja jest mobilną PWA. Firma (Micro-Ops) jest osobnym, leniwym modułem i na tym etapie pokazuje „wkrótce”.
+**Home Vault** skanuje fakturę, paragon albo gwarancję, trzyma plik w sejfie i przypomina 30, 7 i 1 dzień przed końcem gwarancji. **Czytnik dokumentów** bierze zdjęcie albo PDF, tłumaczy go prostym językiem i składa szkic odpowiedzi. **Firma (Micro-Ops)** trzyma krótkie zadania na kafelkach, przyjmuje je tekstem albo głosem i porównuje zdjęcie dostawy z listą. Aplikacja jest mobilną PWA. Firma ładuje się leniwie, osobno od domu i czytnika.
 
-Nie ma Stripe, programu partnerskiego ani zadań głosowych. W schemacie SQL są tylko puste kolumny na później.
+Nie ma Stripe, subskrypcji ani programu partnerskiego. Kolumny `stripe_customer_id` i `affiliate_ref` zostają puste. Zadania, osoby i odbiory są w tabelach etapu 3.
 
 ## Jak uruchomić
 
@@ -22,7 +22,7 @@ npm run build
 npm run preview
 ```
 
-`npm test` sprawdza parser pól, daty przypomnień, odjęcie kredytu i złożenie flag z JSON modelu. `npm run build` odpala ścisły `tsc -b` i buduje PWA.
+`npm test` sprawdza parser pól, daty przypomnień, odjęcie kredytu, złożenie flag z JSON modelu i składnię zadania (`Karol, montaż jutro 9:00` oraz jutro, godzinę i osobę). `npm run build` odpala ścisły `tsc -b` i buduje PWA.
 
 Skopiuj `.env.example` do `.env`, gdy chcesz podłączyć chmurę. Pliku `.env` nie commitujemy. Bez żadnych kluczy aplikacja działa w trybie demo.
 
@@ -43,11 +43,12 @@ Przeglądarka widzi tylko nazwy `VITE_`. Klucze modeli nie mają tego przedrostk
 | `OPENAI_VISION_MODEL` / `ANTHROPIC_VISION_MODEL` | funkcja | Opcjonalne nazwy modeli. |
 | `EXTRACT_REQUIRE_JWT` | funkcja | `true` wymaga sesji Supabase. |
 
-Funkcję wgrywa się z katalogu `supabase/functions/extract-document`. Migracja jest w `supabase/migrations`.
+Funkcję wgrywa się z katalogu `supabase/functions/extract-document`. Migracje są w `supabase/migrations`. Etap 3 dodaje `ops_people`, `ops_tasks` i `ops_orders`.
 
 ## Architektura
 
-- `src/modules/registry.ts` ładuje leniwie `home`, `micro-ops` i `docs`. Kolejny etap podmienia swój moduł, pulpit zostaje.
+- `src/modules/registry.ts` ładuje leniwie `home`, `micro-ops` i `docs`. Firma nie wchodzi do paczki domu ani czytnika. Kolejny etap podmienia swój moduł, pulpit zostaje.
+- Zadania firmy, osoby i odbiory leżą w tym samym IndexedDB (`src/lib/db.ts`, wersja 3). Bez kluczy Supabase zostają na urządzeniu. Z kluczami idą tą samą kolejką co dokumenty.
 - Język PL (domyślny) i EN są w `src/i18n`. W ustawieniach jest też jasny/ciemny motyw i skala tekstu, zapisywana lokalnie. Przyciski rosną razem z czcionką.
 - Wejście: e-mail oraz przycisk Google. Przy Supabase to prawdziwe Auth. Bez kluczy powstaje lokalna sesja demo (przycisk Google nie łączy się z Google).
 - Rodzina: gospodarstwo i zaproszenie po e-mailu. W demo wpis zostaje w IndexedDB. Przy Supabase funkcja `invite_household_member` zapisuje członka ze statusem `pending`. Sam list e-mail na tym etapie nie wychodzi, bo klucz anon nie wysyła poczty.
@@ -86,6 +87,19 @@ Tak działa kafelek **Dokumenty**, nie makieta. Dom zostaje bez zmian.
 7. Podgląd obrazu rysuje kolorowe markery tam, gdzie flaga ma ramkę (wysoka czerwień, średnia bursztyn, niska zieleń). Flaga bez ramki i tak jest na liście, a jej cytat jest zaznaczony w panelu tekstu.
 8. Szkic odpowiedzi da się poprawić. **Pobierz PDF** i **Szkic e-mail** działają tak jak przy dokumencie w domu.
 
+## Przepływ firmy (Micro-Ops)
+
+Tak działa kafelek **Firma**, nie makieta. Dom i czytnik zostają bez zmian.
+
+1. Na pulpicie otwierasz **Firma**. Moduł dociąga się osobno.
+2. Zostajesz na **Zadaniach**. Trzy grupy kafelków: **Nowe**, **W toku**, **Gotowe**. Stuknięcie kafelka zmienia stan i po „gotowe” wraca do „nowe”. Jedynym wymaganym polem jest tytuł. Reszta interfejsu jest cicha: duże cele, mało tekstu.
+3. Nowe zadanie wpisujesz w pole albo dyktujesz. Składnia jest jedna. Zdanie `Karol, montaż jutro 9:00` ustawia osobę Karol, tytuł „montaż” i termin jutro o 9:00. Działa też `jutro` bez godziny, sama godzina (`o 8`, `14:30`, `o godzinie 9`) i angielskie `tomorrow`. Przecinek albo dwukropek oznacza imię. Znane imię z tego gospodarstwa rozpoznaje się też na początku zdania, bez przecinka. Słowo „montaż” bez przecinka zostaje tytułem, a nie osobą.
+4. Nieznane imię dopisuje osobę do gospodarstwa. Widać ją nad tablicą. To nie jest zaproszenie e-mail i nie tworzy konta.
+5. **Dyktuj** używa Web Speech API, gdy przeglądarka je ma (także pod nazwą `webkitSpeechRecognition`). Zdanie z mikrofonu przechodzi przez ten sam parser co pole tekstu. Bez mikrofonu przycisk znika i zostaje pole. LifeVault nie wysyła nagrania: na tekst zamienia je przeglądarka.
+6. **Dostawa**. Wpisujesz listę oczekiwaną, jedna pozycja w linii. Potem **Zdjęcie zamówienia** albo plik z dysku. Gdy jest `VITE_EXTRACT_FUNCTION_URL`, sieć i obraz do 8 MB, linie bierze istniejąca funkcja `extract-document`. Inaczej obraz idzie do tesseract.js (`pol+eng`), a tekst jest cięty na linie. PDF bez funkcji nie jest zgadywany.
+7. Pod listą są trzy grupy: **Zgadza się**, **Brakuje**, **Dodatkowo**. Poprawiona lista liczy się od razu. Stuknięcie dodatkowej pozycji dopisuje ją do listy. **Nowa dostawa** czyści bieżący arkusz. Wcześniejsze odbiory zostają pod spodem.
+8. Zapis jest od razu w IndexedDB i działa offline. Gdy Supabase jest skonfigurowane, osoba, zadanie i odbiór wpadają do kolejki. Osoba wychodzi przed zadaniem, które na nią wskazuje. RLS: członek gospodarstwa czyta i zapisuje tylko swoje wiersze, tak jak przy dokumentach. Wstawienie wymaga `created_by = auth.uid()`.
+
 ## Kredyty
 
 Jedna analiza kosztuje **1** kredyt. Nowe gospodarstwo demo startuje z **3**. Gospodarstwo założone wcześniej dostaje te 3 przy pierwszym otwarciu czytnika, raz. Przy **0** analiza nie startuje: widać ekran braku kredytów.
@@ -105,12 +119,12 @@ Saldo jest na gospodarstwo. Lokalnie leży w IndexedDB (konta i księga). W Post
 
 ## Co działa od razu, a co czeka
 
-Działa bez kluczy: zgoda, demo logowanie, hasło sejfu, skan, Tesseract i parser, formularz, szyfrowany zapis, lista, szukanie lokalne, przypomnienia 30/7/1, ICS, link do Kalendarza Google, PDF, szkic e-mail, zgłoszenie usterki, rodzina zapisana lokalnie, motyw, język, skala tekstu, PWA, czytnik dokumentów (Tesseract i heurystyki, 3 kredyty na start, pakiet testowy bez płatności).
+Działa bez kluczy: zgoda, demo logowanie, hasło sejfu, skan, Tesseract i parser, formularz, szyfrowany zapis, lista, szukanie lokalne, przypomnienia 30/7/1, ICS, link do Kalendarza Google, PDF, szkic e-mail, zgłoszenie usterki, rodzina zapisana lokalnie, motyw, język, skala tekstu, PWA, czytnik dokumentów (Tesseract i heurystyki, 3 kredyty na start, pakiet testowy bez płatności), tablica zadań firmy, zadanie z tekstu i z głosu (gdy przeglądarka ma Web Speech), osoba dopisana z imienia, porównanie zdjęcia dostawy z listą.
 
 Czeka na konfigurację:
 
 - Supabase: prawdziwe konto e-mail i Google, gospodarstwo w Postgresie, zaproszenie jako wiersz, synchronizacja szyfrogramu i pól, indeks pełnotekstowy.
-- `extract-document` oraz klucz OpenAI albo Anthropic: odczyt wizyjny faktury po stronie serwera. PDF w trybie faktury funkcja odsyła do ręcznego uzupełnienia. Ten sam adres z `purpose: "reader"` (albo `VITE_AI_EXTRACT_URL`) oddaje streszczenie, flagi i szkic w wybranym języku.
+- `extract-document` oraz klucz OpenAI albo Anthropic: odczyt wizyjny faktury po stronie serwera. PDF w trybie faktury funkcja odsyła do ręcznego uzupełnienia. Ten sam adres z `purpose: "reader"` (albo `VITE_AI_EXTRACT_URL`) oddaje streszczenie, flagi i szkic w wybranym języku. Zdjęcie dostawy w Firmie używa tego samego adresu, a bez niego Tesseracta.
 - `VITE_MANUAL_SEARCH_API_URL`: adres instrukcji z Twojego API. Bez tego jest tylko link wyszukiwania i własny plik.
 - `VITE_VAPID_PUBLIC_KEY`: subskrypcja Web Push. Bez niej zostają lokalne powiadomienia w service workerze.
 - Wysyłka e-maila zaproszenia: nie ma jej w tym etapie.
