@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useNav } from '../app/nav'
-import { useSettings, type FontScaleId } from '../app/settings'
 import { useI18n } from '../i18n/context'
 import { moduleRegistry, type ModuleId } from '../modules/registry'
+import { AppearanceTools } from './AppearanceTools'
 import { Dashboard } from './Dashboard'
 import { ErrorBoundary } from './ErrorBoundary'
 import { HouseholdScreen } from './HouseholdScreen'
@@ -14,28 +14,14 @@ const menu: { id: ModuleId; label: 'tileHomeTitle' | 'tileCompanyTitle' | 'tileD
   { id: 'docs', label: 'tileDocsTitle' },
 ]
 
-const scales: { id: FontScaleId; mark: string }[] = [
-  { id: 'sm', mark: 'A' },
-  { id: 'md', mark: 'A' },
-  { id: 'lg', mark: 'A' },
-  { id: 'xl', mark: 'A' },
-]
-
-const scaleClass: Record<FontScaleId, string> = {
-  sm: 'text-[11px]',
-  md: 'text-[13px]',
-  lg: 'text-[15px]',
-  xl: 'text-[18px]',
-}
-
 /**
- * Pasek: znak LifeVault, menu trzech kategorii i małe sterowanie wyglądem.
- * Język, motyw i skala nie są osobnymi ekranami z wielkimi blokami.
+ * Pasek: znak LifeVault i menu trzech kategorii.
+ * Na szerokim ekranie język, motyw, skala, rodzina i ustawienia są w tym samym rzędzie.
+ * Na wąskim zostaje jeden zwarty przycisk, który otwiera ustawienia.
  */
 
 export function Shell() {
   const { t } = useI18n()
-  const settings = useSettings()
   const { route, goDashboard, openModule, openHousehold, openSettings } = useNav()
   const online = useOnline()
   const activeModule = route.name === 'module' ? route.id : null
@@ -43,15 +29,15 @@ export function Shell() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-20 border-b border-stone-200/80 bg-[#f7f4ee]/95 backdrop-blur dark:border-stone-800 dark:bg-stone-950/95">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5 sm:px-6">
-          <button className="wordmark px-1 text-xl text-stone-950 dark:text-stone-50" type="button" onClick={goDashboard}>
+        <div className="mx-auto flex w-full max-w-5xl flex-nowrap items-center gap-x-2 px-3 py-2 lg:flex-wrap lg:gap-x-3 lg:px-6 lg:py-2.5">
+          <button className="wordmark shrink-0 px-0.5 text-[19px] text-stone-950 dark:text-stone-50 lg:px-1 lg:text-xl" type="button" onClick={goDashboard}>
             {t('appName')}
           </button>
-          <nav className="flex flex-wrap items-center gap-1" aria-label={t('dashboard')}>
+          <nav className="flex min-w-0 flex-nowrap items-center gap-0.5 lg:gap-1" aria-label={t('dashboard')}>
             {menu.map((item) => (
               <button
                 key={item.id}
-                className={activeModule === item.id ? 'nav-link nav-on' : 'nav-link'}
+                className={activeModule === item.id ? 'nav-link nav-on max-lg:px-2 max-lg:text-[13px]' : 'nav-link max-lg:px-2 max-lg:text-[13px]'}
                 type="button"
                 aria-current={activeModule === item.id ? 'page' : undefined}
                 onClick={() => openModule(item.id)}
@@ -60,38 +46,8 @@ export function Shell() {
               </button>
             ))}
           </nav>
-          <div className="ml-auto flex flex-wrap items-center gap-1.5">
-            <div className="inline-flex rounded-full bg-stone-200/70 p-0.5 dark:bg-stone-800" role="group" aria-label={t('language')}>
-              <button className={settings.lang === 'pl' ? 'tool tool-on' : 'tool'} type="button" aria-pressed={settings.lang === 'pl'} onClick={() => settings.setLang('pl')}>
-                PL
-              </button>
-              <button className={settings.lang === 'en' ? 'tool tool-on' : 'tool'} type="button" aria-pressed={settings.lang === 'en'} onClick={() => settings.setLang('en')}>
-                EN
-              </button>
-            </div>
-            <button
-              className="tool ring-1 ring-stone-300 dark:ring-stone-600"
-              type="button"
-              aria-label={t('theme')}
-              aria-pressed={settings.theme === 'dark'}
-              onClick={() => settings.setTheme(settings.theme === 'dark' ? 'light' : 'dark')}
-            >
-              {settings.theme === 'dark' ? t('themeDark') : t('themeLight')}
-            </button>
-            <div className="inline-flex rounded-full bg-stone-200/70 p-0.5 dark:bg-stone-800" role="group" aria-label={t('fontScale')}>
-              {scales.map((scale) => (
-                <button
-                  key={scale.id}
-                  className={`${settings.fontScale === scale.id ? 'tool tool-on' : 'tool'} ${scaleClass[scale.id]}`}
-                  type="button"
-                  aria-pressed={settings.fontScale === scale.id}
-                  aria-label={t(scaleLabel[scale.id])}
-                  onClick={() => settings.setFontScale(scale.id)}
-                >
-                  {scale.mark}
-                </button>
-              ))}
-            </div>
+          <div className="ml-auto hidden flex-wrap items-center gap-1.5 lg:flex">
+            <AppearanceTools />
             <span className="inline-flex items-center gap-1.5 px-1 text-[12px] font-medium text-stone-500 dark:text-stone-400">
               <span className={`size-1.5 rounded-full ${online ? 'bg-teal-600' : 'bg-stone-400'}`} />
               {online ? t('online') : t('offline')}
@@ -103,6 +59,18 @@ export function Shell() {
               {t('settings')}
             </button>
           </div>
+          <button
+            className="tool ml-auto grid size-8 shrink-0 place-items-center p-0 ring-1 ring-stone-300 lg:hidden dark:ring-stone-600"
+            type="button"
+            aria-label={t('settings')}
+            aria-current={route.name === 'settings' ? 'page' : undefined}
+            onClick={openSettings}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
         </div>
       </header>
       <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
@@ -116,13 +84,6 @@ export function Shell() {
     </div>
   )
 }
-
-const scaleLabel = {
-  sm: 'fontSmall',
-  md: 'fontNormal',
-  lg: 'fontLarge',
-  xl: 'fontXLarge',
-} as const
 
 function ModuleHost({ id }: { id: ModuleId }) {
   const { t } = useI18n()
