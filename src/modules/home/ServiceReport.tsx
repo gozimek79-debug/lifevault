@@ -5,6 +5,7 @@ import { downloadBlob, fileSlug, openMailto } from '../../lib/download'
 import { buildPdf } from '../../lib/pdf-export'
 import type { VaultDocument } from '../../lib/types'
 import { useI18n } from '../../i18n/context'
+import { ActionRow, BackLink, PageIntro } from '../../components/chrome'
 import { documentLines } from './describe'
 import { typeLabel } from './fields'
 
@@ -54,11 +55,9 @@ export function ServiceReport({ initialId, onBack }: { initialId: string | null;
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
-      <button className="tap-ghost" type="button" onClick={onBack}>
-        {t('back')}
-      </button>
-      <h1 className="text-3xl font-semibold">{t('reportTitle')}</h1>
+    <div className="flex max-w-3xl flex-col gap-5">
+      <BackLink onClick={onBack}>{t('back')}</BackLink>
+      <PageIntro title={t('reportTitle')} lede={t('reportFaultHint')} />
       <label className="label" htmlFor="fault">
         {t('reportSummary')}
       </label>
@@ -84,20 +83,22 @@ export function ServiceReport({ initialId, onBack }: { initialId: string | null;
       <button className="tap-primary" type="button" onClick={() => void pdf()}>
         {t('reportPdf')}
       </button>
-      <button
-        className="tap-ghost"
-        type="button"
-        onClick={() => {
-          const text = body()
-          if (!summary.trim() && selected().length === 0) {
-            setNote(t('reportEmpty'))
-            return
-          }
-          openMailto(t('reportSubject'), text)
-        }}
-      >
-        {t('reportMail')}
-      </button>
+      <ActionRow hint={t('reportMailHint')}>
+        <button
+          className="tap-ghost"
+          type="button"
+          onClick={() => {
+            const text = body()
+            if (!summary.trim() && selected().length === 0) {
+              setNote(t('reportEmpty'))
+              return
+            }
+            openMailto(t('reportSubject'), text)
+          }}
+        >
+          {t('reportMail')}
+        </button>
+      </ActionRow>
       {note ? <p role="status">{note}</p> : null}
     </div>
   )

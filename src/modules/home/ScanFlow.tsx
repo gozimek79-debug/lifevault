@@ -6,6 +6,7 @@ import { extractFromFile, type ExtractSource } from '../../lib/extract'
 import { resolveManual, type ManualResolution } from '../../lib/manual'
 import type { DocumentDraft } from '../../lib/types'
 import { useI18n } from '../../i18n/context'
+import { ActionRow, BackLink, PageIntro } from '../../components/chrome'
 import { reminderCopy } from './describe'
 import { DocumentFields, typeLabel } from './fields'
 import { saveNewDocument } from './save-document'
@@ -120,19 +121,19 @@ export function ScanFlow({ onSaved, onCancel }: { onSaved: (id: string) => void;
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
-      <h1 className="text-3xl font-semibold">{t('scanTitle')}</h1>
-      <button className="tap-ghost" type="button" onClick={onCancel}>
-        {t('back')}
-      </button>
+    <div className="flex max-w-3xl flex-col gap-5">
+      <BackLink onClick={onCancel}>{t('back')}</BackLink>
+      <PageIntro title={t('scanTitle')} lede={t('homeLead')} />
       {phase.name === 'capture' ? (
-        <div className="flex flex-col gap-3">
+        <div>
           <button className="tap-primary" type="button" onClick={() => cameraRef.current?.click()}>
             {t('takePhoto')}
           </button>
-          <button className="tap-ghost" type="button" onClick={() => fileRef.current?.click()}>
-            {t('chooseFile')}
-          </button>
+          <ActionRow hint={t('chooseFileHint')}>
+            <button className="tap-ghost" type="button" onClick={() => fileRef.current?.click()}>
+              {t('chooseFile')}
+            </button>
+          </ActionRow>
         </div>
       ) : null}
       <input ref={cameraRef} className="sr-only" type="file" accept="image/*" capture="environment" onChange={(event) => take(event.target.files?.[0])} />
@@ -150,13 +151,15 @@ export function ScanFlow({ onSaved, onCancel }: { onSaved: (id: string) => void;
         </div>
       ) : null}
       {phase.name === 'preview' ? (
-        <div className="flex flex-col gap-3">
-          <button className="tap-ghost" type="button" onClick={() => setPhase({ name: 'capture' })}>
-            {t('retake')}
-          </button>
+        <div>
           <button className="tap-primary" type="button" disabled={busy} onClick={() => void read()}>
             {busy ? t('extracting') : t('extract')}
           </button>
+          <ActionRow hint={t('retakeHint')}>
+            <button className="tap-ghost" type="button" onClick={() => setPhase({ name: 'capture' })}>
+              {t('retake')}
+            </button>
+          </ActionRow>
         </div>
       ) : null}
       {phase.name === 'form' ? (
@@ -168,25 +171,31 @@ export function ScanFlow({ onSaved, onCancel }: { onSaved: (id: string) => void;
           <DocumentFields value={phase.draft} onChange={(draft) => setPhase({ ...phase, draft })} />
           {phase.draft.extractedText ? (
             <details className="card">
-              <summary className="min-h-12 cursor-pointer font-semibold">{t('rawText')}</summary>
+              <summary className="cursor-pointer font-semibold">{t('rawText')}</summary>
               <pre className="mt-3 whitespace-pre-wrap">{phase.draft.extractedText}</pre>
             </details>
           ) : null}
-          <h2 className="text-2xl font-semibold">{t('manualTitle')}</h2>
-          <button className="tap-ghost" type="button" disabled={busy} onClick={() => void findManual()}>
-            {busy ? t('manualWorking') : t('manualFind')}
-          </button>
+          <h2 className="text-xl font-semibold">{t('manualTitle')}</h2>
+          <ActionRow hint={t('manualFindHint')}>
+            <button className="tap-ghost" type="button" disabled={busy} onClick={() => void findManual()}>
+              {busy ? t('manualWorking') : t('manualFind')}
+            </button>
+          </ActionRow>
           {phase.manual ? (
             <>
-              <p>{phase.manual.source === 'api' ? t('manualApi') : t('manualStoredLink')}</p>
-              <a className="tap-ghost" href={phase.manual.url} target="_blank" rel="noreferrer">
-                {t('openManual')}
-              </a>
+              <p className="text-sm text-stone-600 dark:text-stone-400">{phase.manual.source === 'api' ? t('manualApi') : t('manualStoredLink')}</p>
+              <ActionRow hint={t('openManualHint')}>
+                <a className="tap-ghost" href={phase.manual.url} target="_blank" rel="noreferrer">
+                  {t('openManual')}
+                </a>
+              </ActionRow>
             </>
           ) : null}
-          <button className="tap-ghost" type="button" onClick={() => manualRef.current?.click()}>
-            {t('manualAttach')}
-          </button>
+          <ActionRow hint={t('manualAttachHint')}>
+            <button className="tap-ghost" type="button" onClick={() => manualRef.current?.click()}>
+              {t('manualAttach')}
+            </button>
+          </ActionRow>
           <input
             ref={manualRef}
             className="sr-only"

@@ -4,6 +4,7 @@ import { useI18n } from '../../i18n/context'
 import { listOpsPeople, listOpsTasks } from '../../lib/db'
 import { addTaskFromPhrase, cycleOpsTask } from '../../lib/ops'
 import type { OpsPerson, OpsTask, OpsTaskStatus } from '../../lib/types'
+import { ActionRow, PageIntro } from '../../components/chrome'
 import { DeliveryPanel } from './DeliveryPanel'
 import { formatDue } from './format'
 import { listenOnce, speechAvailable } from './speech'
@@ -20,6 +21,12 @@ const STATUS_KEY = {
   doing: 'opsStatusDoing',
   done: 'opsStatusDone',
 } as const
+
+const STATUS_TONE: Record<OpsTaskStatus, string> = {
+  new: 'bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-100',
+  doing: 'bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100',
+  done: 'bg-teal-100 text-teal-950 dark:bg-teal-950 dark:text-teal-100',
+}
 
 export default function MicroOpsModule() {
   const { t, lang } = useI18n()
@@ -102,14 +109,13 @@ export default function MicroOpsModule() {
   const names = new Map(people.map((person) => [person.id, person.name]))
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
-      <h1 className="text-3xl font-semibold">{t('opsTitle')}</h1>
-      <p>{t('opsLead')}</p>
-      <div className="grid grid-cols-2 gap-2">
-        <button className={view === 'tasks' ? 'tap-primary' : 'tap-ghost'} type="button" onClick={() => setView('tasks')}>
+    <div className="flex flex-col gap-6">
+      <PageIntro title={t('opsTitle')} lede={t('opsLead')} />
+      <div className="seg" role="tablist" aria-label={t('opsTitle')}>
+        <button className={view === 'tasks' ? 'seg-on' : 'seg-off'} type="button" role="tab" aria-selected={view === 'tasks'} onClick={() => setView('tasks')}>
           {t('opsTasks')}
         </button>
-        <button className={view === 'delivery' ? 'tap-primary' : 'tap-ghost'} type="button" onClick={() => setView('delivery')}>
+        <button className={view === 'delivery' ? 'seg-on' : 'seg-off'} type="button" role="tab" aria-selected={view === 'delivery'} onClick={() => setView('delivery')}>
           {t('opsDelivery')}
         </button>
       </div>
@@ -118,44 +124,52 @@ export default function MicroOpsModule() {
 
       {view === 'tasks' ? (
         <>
-          <label className="label" htmlFor="ops-phrase">
-            {t('opsAdd')}
-          </label>
-          <input
-            id="ops-phrase"
-            className="field"
-            value={draft}
-            placeholder={t('opsAddPlaceholder')}
-            onChange={(event) => {
-              setDraft(event.target.value)
-              setHint(null)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void submit(draft)
-            }}
-          />
-          <button className="tap-primary" type="button" onClick={() => void submit(draft)}>
-            {t('opsAdd')}
-          </button>
+          <div className="form-stack">
+            <label className="label" htmlFor="ops-phrase">
+              {t('opsAdd')}
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                id="ops-phrase"
+                className="field w-auto min-w-[12rem] flex-1"
+                value={draft}
+                placeholder={t('opsAddPlaceholder')}
+                onChange={(event) => {
+                  setDraft(event.target.value)
+                  setHint(null)
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') void submit(draft)
+                }}
+              />
+              <button className="tap-primary" type="button" onClick={() => void submit(draft)}>
+                {t('opsAdd')}
+              </button>
+            </div>
+          </div>
           {canSpeak ? (
-            <button className="tap-ghost" type="button" onClick={toggleVoice}>
-              {listening ? t('opsVoiceStop') : t('opsVoice')}
-            </button>
+            <ActionRow hint={t('voiceHint')}>
+              <button className="tap-ghost" type="button" onClick={toggleVoice}>
+                {listening ? t('opsVoiceStop') : t('opsVoice')}
+              </button>
+            </ActionRow>
           ) : (
-            <p>{t('opsVoiceMissing')}</p>
+            <p className="text-sm text-stone-600 dark:text-stone-400">{t('opsVoiceMissing')}</p>
           )}
           {listening ? <p>{t('opsListening')}</p> : null}
-          {hint ? <p className="card">{hint}</p> : null}
-          <p>{t('opsBoardHint')}</p>
+          {hint ? <p className="text-sm" role="status">{hint}</p> : null}
+          <p className="text-sm text-stone-500">{t('opsBoardHint')}</p>
           {people.length ? (
-            <p>
-              {t('opsPeople')}: {people.map((person) => person.name).join(', ')}
+            <p className="text-sm">
+              <span className="font-semibold">{t('opsPeople')}: </span>
+              {people.map((person) => person.name).join(', ')}
             </p>
           ) : null}
-          {tasks.length === 0 ? <p>{t('opsEmpty')}</p> : null}
+          {tasks.length === 0 ? <p className="text-stone-600 dark:text-stone-400">{t('opsEmpty')}</p> : null}
+          <div className="grid gap-4 md:grid-cols-3">
           {STATUSES.map((status) => (
             <section key={status} className="flex flex-col gap-2">
-              <h2 className="text-xl font-semibold">{t(STATUS_KEY[status])}</h2>
+              <h2 className={`w-fit rounded-full px-3 py-1 text-sm font-semibold ${STATUS_TONE[status]}`}>{t(STATUS_KEY[status])}</h2>
               {tasks
                 .filter((task) => task.status === status)
                 .map((task) => {
@@ -164,20 +178,20 @@ export default function MicroOpsModule() {
                   return (
                     <button
                       key={task.id}
-                      className={`card min-h-24 w-full ${status === 'done' ? 'opacity-80' : ''}`}
+                      className={`card w-full text-left ${status === 'done' ? 'opacity-75' : ''}`}
                       type="button"
                       onClick={() => void cycle(task)}
                     >
-                      <span className="block text-2xl font-semibold">{task.title}</span>
-                      <span className="mt-1 block">{t(STATUS_KEY[status])}</span>
-                      {person ? <span className="mt-1 block">{person}</span> : null}
-                      {task.dueAt ? <span className="mt-1 block">{formatDue(task.dueAt, lang)}</span> : null}
-                      {sync ? <span className="mt-1 block text-sm">{t(sync)}</span> : null}
+                      <span className="block text-lg font-semibold">{task.title}</span>
+                      {person ? <span className="mt-1 block text-sm">{person}</span> : null}
+                      {task.dueAt ? <span className="mt-1 block text-sm text-stone-600 dark:text-stone-400">{formatDue(task.dueAt, lang)}</span> : null}
+                      {sync ? <span className="mt-1 block text-xs">{t(sync)}</span> : null}
                     </button>
                   )
                 })}
             </section>
           ))}
+          </div>
         </>
       ) : null}
     </div>

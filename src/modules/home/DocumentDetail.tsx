@@ -10,6 +10,7 @@ import { buildPdf } from '../../lib/pdf-export'
 import { downloadEncrypted } from '../../lib/sync'
 import type { DocumentDraft, VaultDocument } from '../../lib/types'
 import { useI18n } from '../../i18n/context'
+import { ActionRow, BackLink } from '../../components/chrome'
 import { documentLines, reminderCopy } from './describe'
 import { DocumentFields, typeLabel } from './fields'
 import { removeDocument, updateDocument } from './save-document'
@@ -36,9 +37,7 @@ export function DocumentDetail({ id, onBack, onReport }: { id: string; onBack: (
   if (!document || !draft || !session || !vault.key || !vault.saltB64) {
     return (
       <div className="flex flex-col gap-3">
-        <button className="tap-ghost" type="button" onClick={onBack}>
-          {t('back')}
-        </button>
+        <BackLink onClick={onBack}>{t('back')}</BackLink>
         <p>{t('loading')}</p>
       </div>
     )
@@ -95,45 +94,55 @@ export function DocumentDetail({ id, onBack, onReport }: { id: string; onBack: (
 
   return (
     <div className="flex flex-col gap-4 pb-8">
-      <button className="tap-ghost" type="button" onClick={onBack}>
-        {t('back')}
-      </button>
-      <h1 className="text-3xl font-semibold">{document.title || t('detailTitle')}</h1>
+      <BackLink onClick={onBack}>{t('back')}</BackLink>
+      <h1 className="text-3xl font-semibold tracking-tight">{document.title || t('detailTitle')}</h1>
       <DocumentFields value={draft} onChange={setDraft} />
       <button className="tap-primary" type="button" disabled={busy} onClick={() => void save()}>
         {busy ? t('saving') : t('saveChanges')}
       </button>
-      <button className="tap-ghost" type="button" onClick={() => void download('file')}>
-        {t('decryptFile')}
-      </button>
-      {(document.manualFile || document.manualRemotePath) ? (
-        <button className="tap-ghost" type="button" onClick={() => void download('manual')}>
-          {t('decryptManual')}
+      <ActionRow hint={t('decryptFileHint')}>
+        <button className="tap-ghost" type="button" onClick={() => void download('file')}>
+          {t('decryptFile')}
         </button>
+      </ActionRow>
+      {(document.manualFile || document.manualRemotePath) ? (
+        <ActionRow hint={t('decryptManualHint')}>
+          <button className="tap-ghost" type="button" onClick={() => void download('manual')}>
+            {t('decryptManual')}
+          </button>
+        </ActionRow>
       ) : null}
       {document.manualFile ? <p>{t('attachedManual')}</p> : null}
-      <button
-        className="tap-ghost"
-        type="button"
-        onClick={() => {
-          void resolveManual(draft.manufacturer, draft.model).then(setManual)
-        }}
-      >
-        {t('manualFind')}
-      </button>
+      <ActionRow hint={t('manualFindHint')}>
+        <button
+          className="tap-ghost"
+          type="button"
+          onClick={() => {
+            void resolveManual(draft.manufacturer, draft.model).then(setManual)
+          }}
+        >
+          {t('manualFind')}
+        </button>
+      </ActionRow>
       {manual ? (
-        <a className="tap-ghost" href={manual.url} target="_blank" rel="noreferrer">
-          {t('openManual')}
-        </a>
+        <ActionRow hint={t('openManualHint')}>
+          <a className="tap-ghost" href={manual.url} target="_blank" rel="noreferrer">
+            {t('openManual')}
+          </a>
+        </ActionRow>
       ) : null}
       {document.manualSearchUrl ? (
-        <a className="tap-ghost" href={document.manualSearchUrl} target="_blank" rel="noreferrer">
-          {t('openManual')}
-        </a>
+        <ActionRow hint={t('openManualHint')}>
+          <a className="tap-ghost" href={document.manualSearchUrl} target="_blank" rel="noreferrer">
+            {t('openManual')}
+          </a>
+        </ActionRow>
       ) : null}
-      <button className="tap-ghost" type="button" onClick={() => manualRef.current?.click()}>
-        {t('manualAttach')}
-      </button>
+      <ActionRow hint={t('manualAttachHint')}>
+        <button className="tap-ghost" type="button" onClick={() => manualRef.current?.click()}>
+          {t('manualAttach')}
+        </button>
+      </ActionRow>
       <input
         ref={manualRef}
         className="sr-only"
@@ -141,37 +150,45 @@ export function DocumentDetail({ id, onBack, onReport }: { id: string; onBack: (
         accept="application/pdf,image/*"
         onChange={(event) => setManualFile(event.target.files?.[0] ?? null)}
       />
-      <button
-        className="tap-ghost"
-        type="button"
-        onClick={() => {
-          void buildPdf(document.title || t('detailTitle'), [{ heading: document.title, lines }]).then((blob) => {
-            downloadBlob(`lifevault-${fileSlug(document.title)}.pdf`, blob)
-          })
-        }}
-      >
-        {t('exportPdf')}
-      </button>
-      <button
-        className="tap-ghost"
-        type="button"
-        onClick={() => openMailto(t('documentMailSubject', { title: document.title }), lines.join('\n'))}
-      >
-        {t('exportMail')}
-      </button>
-      <button className="tap-ghost" type="button" onClick={onReport}>
-        {t('reportFault')}
-      </button>
-      <button
-        className="tap-ghost"
-        type="button"
-        onClick={() => {
-          if (!window.confirm(t('confirmDelete'))) return
-          void removeDocument(document, reminderCopy(t)).then(onBack)
-        }}
-      >
-        {t('deleteDocument')}
-      </button>
+      <ActionRow hint={t('exportPdfHint')}>
+        <button
+          className="tap-ghost"
+          type="button"
+          onClick={() => {
+            void buildPdf(document.title || t('detailTitle'), [{ heading: document.title, lines }]).then((blob) => {
+              downloadBlob(`lifevault-${fileSlug(document.title)}.pdf`, blob)
+            })
+          }}
+        >
+          {t('exportPdf')}
+        </button>
+      </ActionRow>
+      <ActionRow hint={t('exportMailHint')}>
+        <button
+          className="tap-ghost"
+          type="button"
+          onClick={() => openMailto(t('documentMailSubject', { title: document.title }), lines.join('\n'))}
+        >
+          {t('exportMail')}
+        </button>
+      </ActionRow>
+      <ActionRow hint={t('reportFaultHint')}>
+        <button className="tap-ghost" type="button" onClick={onReport}>
+          {t('reportFault')}
+        </button>
+      </ActionRow>
+      <ActionRow hint={t('deleteHint')}>
+        <button
+          className="tap-ghost"
+          type="button"
+          onClick={() => {
+            if (!window.confirm(t('confirmDelete'))) return
+            void removeDocument(document, reminderCopy(t)).then(onBack)
+          }}
+        >
+          {t('deleteDocument')}
+        </button>
+      </ActionRow>
       {note ? <p role="status">{note}</p> : null}
     </div>
   )

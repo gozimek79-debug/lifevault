@@ -5,6 +5,7 @@ import { extractFromFile } from '../../lib/extract'
 import { checklistItems, compareOrderLines, splitOrderLines } from '../../lib/order-lines'
 import { saveOpsOrder } from '../../lib/ops'
 import type { OpsOrder, OpsOrderSource } from '../../lib/types'
+import { ActionRow } from '../../components/chrome'
 import { formatStamp } from './format'
 
 /**
@@ -179,9 +180,11 @@ export function DeliveryPanel({ householdId, userId }: { householdId: string; us
       <button className="tap-primary" type="button" onClick={() => cameraRef.current?.click()} disabled={busy}>
         {busy ? t('opsReading') : t('opsPhoto')}
       </button>
-      <button className="tap-ghost" type="button" onClick={() => fileRef.current?.click()} disabled={busy}>
-        {t('chooseFile')}
-      </button>
+      <ActionRow hint={t('chooseFileHint')}>
+        <button className="tap-ghost" type="button" onClick={() => fileRef.current?.click()} disabled={busy}>
+          {t('chooseFile')}
+        </button>
+      </ActionRow>
       <input
         ref={cameraRef}
         className="hidden"
@@ -202,29 +205,35 @@ export function DeliveryPanel({ householdId, userId }: { householdId: string; us
       {current && current.extractedLines.length > 0 ? (
         <p className="font-semibold">{current.source === 'cloud' ? t('opsSourceCloud') : t('opsSourceLocal')}</p>
       ) : null}
-      <LineGroup title={t('opsMatched')} lines={comparison.matched} empty={t('opsNone')} />
-      <LineGroup title={t('opsMissing')} lines={comparison.missing} empty={t('opsNone')} />
-      <section className="flex flex-col gap-2">
-        <h2 className="text-xl font-semibold">{t('opsExtra')}</h2>
-        {comparison.extra.length ? <p>{t('opsExtraHint')}</p> : <p>{t('opsNone')}</p>}
-        {comparison.extra.map((line, index) => (
-          <button key={`${line}-${index}`} className="card min-h-16 w-full text-xl" type="button" onClick={() => addExtra(line)}>
-            {line}
-          </button>
-        ))}
-      </section>
-      <button className="tap-ghost" type="button" onClick={startNew}>
-        {t('opsNewCheck')}
-      </button>
+      <div className="grid gap-3 md:grid-cols-3">
+        <LineGroup title={t('opsMatched')} lines={comparison.matched} empty={t('opsNone')} tone="border-t-teal-700" />
+        <LineGroup title={t('opsMissing')} lines={comparison.missing} empty={t('opsNone')} tone="border-t-amber-700" />
+        <section className="card border-t-4 border-t-stone-500">
+          <h2 className="text-base font-semibold">{t('opsExtra')}</h2>
+          {comparison.extra.length ? <p className="mt-1 text-sm text-stone-600 dark:text-stone-400">{t('opsExtraHint')}</p> : <p className="mt-2 text-sm text-stone-500">{t('opsNone')}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {comparison.extra.map((line, index) => (
+              <button key={`${line}-${index}`} className="tap-ghost" type="button" onClick={() => addExtra(line)}>
+                {line}
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
+      <ActionRow hint={t('newDeliveryHint')}>
+        <button className="tap-ghost" type="button" onClick={startNew}>
+          {t('opsNewCheck')}
+        </button>
+      </ActionRow>
       {others.length ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-xl font-semibold">{t('opsEarlier')}</h2>
           {others.map((order) => {
             const missing = compareOrderLines(order.checklist, order.extractedLines).missing.length
             return (
-              <button key={order.id} className="card min-h-20 w-full" type="button" onClick={() => openOrder(order)}>
-                <span className="block text-xl font-semibold">{formatStamp(order.updatedAt, lang)}</span>
-                <span className="mt-1 block">
+              <button key={order.id} className="card w-full text-left" type="button" onClick={() => openOrder(order)}>
+                <span className="block font-semibold">{formatStamp(order.updatedAt, lang)}</span>
+                <span className="mt-1 block text-sm text-stone-600 dark:text-stone-400">
                   {t('opsMissing')}: {missing}
                 </span>
               </button>
@@ -236,16 +245,18 @@ export function DeliveryPanel({ householdId, userId }: { householdId: string; us
   )
 }
 
-function LineGroup({ title, lines, empty }: { title: string; lines: string[]; empty: string }) {
+function LineGroup({ title, lines, empty, tone }: { title: string; lines: string[]; empty: string; tone: string }) {
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      {lines.length === 0 ? <p>{empty}</p> : null}
-      {lines.map((line, index) => (
-        <p key={`${line}-${index}`} className="card min-h-16 text-xl">
-          {line}
-        </p>
-      ))}
+    <section className={`card border-t-4 ${tone}`}>
+      <h2 className="text-base font-semibold">{title}</h2>
+      {lines.length === 0 ? <p className="mt-2 text-sm text-stone-500">{empty}</p> : null}
+      <ul className="mt-2 flex flex-col gap-1">
+        {lines.map((line, index) => (
+          <li key={`${line}-${index}`} className="text-sm">
+            {line}
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }

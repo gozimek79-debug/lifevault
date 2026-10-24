@@ -12,6 +12,7 @@ import {
 import { downloadBlob, fileSlug, openMailto } from '../../lib/download'
 import { buildPdf } from '../../lib/pdf-export'
 import type { FlagSeverity, ReaderAnalysis, ReaderLang, RedFlag } from '../../lib/reader-analysis'
+import { ActionRow, PageIntro } from '../../components/chrome'
 import { analyzeDocument } from './analyze'
 
 /**
@@ -144,17 +145,18 @@ export default function DocsModule() {
   const imagePreview = Boolean(previewUrl && phase.name !== 'capture' && phase.file.type.startsWith('image/'))
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
-      <h1 className="text-3xl font-semibold">{t('docsTitle')}</h1>
-      <p>{t('docsLead')}</p>
-      <p className="text-2xl font-semibold">{balance === null ? t('loading') : t('docsBalance', { count: String(balance) })}</p>
+    <div className="flex max-w-3xl flex-col gap-5">
+      <PageIntro title={t('docsTitle')} lede={t('docsLead')} />
+      <p className="w-fit rounded-full bg-white px-3 py-1 text-sm font-semibold ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-700">
+        {balance === null ? t('loading') : t('docsBalance', { count: String(balance) })}
+      </p>
 
       <label className="label" htmlFor="reader-lang">
         {t('docsLang')}
       </label>
       <select
         id="reader-lang"
-        className="field"
+        className="field max-w-xs"
         value={lang}
         onChange={(event) => setLang(event.target.value as ReaderLang)}
       >
@@ -169,10 +171,11 @@ export default function DocsModule() {
         <section className="card flex flex-col gap-3">
           <h2 className="text-2xl font-semibold">{t('docsNoCreditsTitle')}</h2>
           <p>{t('docsNoCreditsBody')}</p>
-          <button className="tap-primary" type="button" onClick={() => void buyPack()} disabled={busy}>
-            {t('docsBuy')}
-          </button>
-          <p>{t('docsPaymentOff')}</p>
+          <ActionRow hint={t('docsPaymentOff')}>
+            <button className="tap-primary" type="button" onClick={() => void buyPack()} disabled={busy}>
+              {t('docsBuy')}
+            </button>
+          </ActionRow>
         </section>
       ) : null}
 
@@ -180,13 +183,15 @@ export default function DocsModule() {
       {error ? <p className="card">{error}</p> : null}
 
       {phase.name === 'capture' ? (
-        <div className="flex flex-col gap-3">
-          <button className="tap-primary" type="button" onClick={() => cameraRef.current?.click()}>
+        <div>
+          <button className={showRefusal ? 'tap-ghost' : 'tap-primary'} type="button" onClick={() => cameraRef.current?.click()}>
             {t('takePhoto')}
           </button>
-          <button className="tap-ghost" type="button" onClick={() => fileRef.current?.click()}>
-            {t('chooseFile')}
-          </button>
+          <ActionRow hint={t('chooseFileHint')}>
+            <button className="tap-ghost" type="button" onClick={() => fileRef.current?.click()}>
+              {t('chooseFile')}
+            </button>
+          </ActionRow>
           <input
             ref={cameraRef}
             className="hidden"
@@ -233,13 +238,17 @@ export default function DocsModule() {
             <iframe title={t('preview')} src={previewUrl} className="h-96 w-full rounded-2xl bg-white" />
           )}
           {phase.name === 'preview' && !showRefusal ? (
-            <div className="flex flex-col gap-3">
-              <button className="tap-primary" type="button" onClick={() => void analyze()} disabled={busy || balance === null}>
-                {busy ? t('docsAnalyzing') : t('docsAnalyze')}
-              </button>
-              <button className="tap-ghost" type="button" onClick={() => setPhase({ name: 'capture' })}>
-                {t('retake')}
-              </button>
+            <div>
+              <ActionRow hint={t('docsAnalyzeHint')}>
+                <button className="tap-primary" type="button" onClick={() => void analyze()} disabled={busy || balance === null}>
+                  {busy ? t('docsAnalyzing') : t('docsAnalyze')}
+                </button>
+              </ActionRow>
+              <ActionRow hint={t('retakeHint')}>
+                <button className="tap-ghost" type="button" onClick={() => setPhase({ name: 'capture' })}>
+                  {t('retake')}
+                </button>
+              </ActionRow>
             </div>
           ) : null}
         </section>
@@ -293,22 +302,25 @@ export default function DocsModule() {
           <button className="tap-primary" type="button" onClick={() => void exportPdf()}>
             {t('exportPdf')}
           </button>
-          <button className="tap-ghost" type="button" onClick={() => openMailto(t('docsExportSubject'), draft)}>
-            {t('exportMail')}
-          </button>
-          <button className="tap-ghost" type="button" onClick={() => setPhase({ name: 'capture' })}>
-            {t('retake')}
-          </button>
+          <ActionRow hint={t('exportMailHint')}>
+            <button className="tap-ghost" type="button" onClick={() => openMailto(t('docsExportSubject'), draft)}>
+              {t('exportMail')}
+            </button>
+          </ActionRow>
+          <ActionRow hint={t('retakeHint')}>
+            <button className="tap-ghost" type="button" onClick={() => setPhase({ name: 'capture' })}>
+              {t('retake')}
+            </button>
+          </ActionRow>
         </section>
       ) : null}
 
       {!showRefusal ? (
-        <section className="card flex flex-col gap-3">
+        <ActionRow hint={t('docsPaymentOff')}>
           <button className="tap-ghost" type="button" onClick={() => void buyPack()} disabled={busy}>
             {t('docsBuy')}
           </button>
-          <p>{t('docsPaymentOff')}</p>
-        </section>
+        </ActionRow>
       ) : null}
     </div>
   )

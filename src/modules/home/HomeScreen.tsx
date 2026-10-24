@@ -5,6 +5,7 @@ import { localSearch } from '../../lib/search'
 import { mergeRemoteDocument, searchRemote } from '../../lib/sync'
 import type { VaultDocument } from '../../lib/types'
 import { useI18n } from '../../i18n/context'
+import { ActionRow, PageIntro } from '../../components/chrome'
 import { DocumentDetail } from './DocumentDetail'
 import { RemindersScreen } from './RemindersScreen'
 import { ScanFlow } from './ScanFlow'
@@ -66,40 +67,42 @@ export default function HomeScreen() {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-36">
-      <h1 className="text-3xl font-semibold">{t('homeTitle')}</h1>
-      <label className="label" htmlFor="search">
-        {t('searchPlaceholder')}
-      </label>
-      <input id="search" className="field" value={query} onChange={(event) => setQuery(event.target.value)} />
-      <div className="flex flex-col gap-2">
-        <button className="tap-ghost" type="button" onClick={() => setScreen({ name: 'reminders' })}>
-          {t('reminders')}
-        </button>
-        <button className="tap-ghost" type="button" onClick={() => setScreen({ name: 'report', documentId: null })}>
-          {t('reportFault')}
-        </button>
+    <div className="flex flex-col gap-6">
+      <PageIntro title={t('homeTitle')} lede={t('homeLead')} />
+      <button className="tap-primary" type="button" onClick={() => setScreen({ name: 'scan' })}>
+        {t('scan')}
+      </button>
+      <div>
+        <ActionRow hint={t('remindersHint')}>
+          <button className="tap-ghost" type="button" onClick={() => setScreen({ name: 'reminders' })}>
+            {t('reminders')}
+          </button>
+        </ActionRow>
+        <ActionRow hint={t('reportFaultHint')}>
+          <button className="tap-ghost" type="button" onClick={() => setScreen({ name: 'report', documentId: null })}>
+            {t('reportFault')}
+          </button>
+        </ActionRow>
       </div>
-      {documents.length === 0 ? <p>{t('emptyDocs')}</p> : null}
-      <ul className="flex flex-col gap-3">
+      <div className="form-stack">
+        <label className="label" htmlFor="search">
+          {t('searchPlaceholder')}
+        </label>
+        <input id="search" className="field" value={query} placeholder={t('searchPlaceholder')} onChange={(event) => setQuery(event.target.value)} />
+      </div>
+      {documents.length === 0 ? <p className="text-stone-600 dark:text-stone-400">{t('emptyDocs')}</p> : null}
+      <ul className="grid gap-3 sm:grid-cols-2">
         {documents.map((document) => (
           <li key={document.id}>
-            <button className="card w-full" type="button" onClick={() => setScreen({ name: 'detail', id: document.id })}>
-              <span className="block text-xl font-semibold">{document.title}</span>
-              <span className="mt-1 block">{document.vendor || document.manufacturer || t('typeOther')}</span>
-              {document.warrantyEnd ? <span className="mt-1 block">{t('warrantyEnds', { date: document.warrantyEnd })}</span> : null}
-              <span className="mt-1 block text-sm">{syncLabel(document.syncState, t)}</span>
+            <button className="card h-full w-full" type="button" onClick={() => setScreen({ name: 'detail', id: document.id })}>
+              <span className="block text-lg font-semibold">{document.title}</span>
+              <span className="mt-1 block text-sm text-stone-600 dark:text-stone-400">{document.vendor || document.manufacturer || t('typeOther')}</span>
+              {document.warrantyEnd ? <span className="mt-1 block text-sm">{t('warrantyEnds', { date: document.warrantyEnd })}</span> : null}
+              <span className="mt-2 block text-xs font-medium uppercase tracking-wide text-stone-500">{syncLabel(document.syncState, t)}</span>
             </button>
           </li>
         ))}
       </ul>
-      <div className="fixed inset-x-0 bottom-0 border-t border-stone-200 bg-stone-100/95 p-4 backdrop-blur dark:border-stone-800 dark:bg-stone-950/95">
-        <div className="mx-auto w-full max-w-lg">
-          <button className="tap-primary w-full" type="button" onClick={() => setScreen({ name: 'scan' })}>
-            {t('scan')}
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
