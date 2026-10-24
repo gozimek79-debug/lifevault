@@ -68,6 +68,10 @@ Deno.serve(async (req) => {
   } catch {
     return json({ ok: false, reason: 'json' }, 400)
   }
+  if (!Deno.env.get('OPENAI_API_KEY') && !Deno.env.get('ANTHROPIC_API_KEY')) {
+    return json({ ok: false, reason: 'no_key' }, 200)
+  }
+
   if (body.purpose === 'reader') return handleReader(body)
 
   const image = typeof body.image === 'string' ? body.image : ''

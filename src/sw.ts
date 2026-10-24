@@ -37,7 +37,7 @@ const timers: number[] = []
 precacheAndRoute(self.__WB_MANIFEST)
 
 registerRoute(
-  ({ url }) => url.hostname === 'tessdata.projectnaptha.com' || url.hostname === 'cdn.jsdelivr.net',
+  ({ url }) => url.hostname === 'cdn.jsdelivr.net',
   new CacheFirst({
     cacheName: 'lifevault-ocr',
     plugins: [new ExpirationPlugin({ maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 * 365 })],
