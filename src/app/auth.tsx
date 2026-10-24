@@ -189,7 +189,7 @@ async function createDemoUser(email: string, passwordHash: string, users: DemoUs
     passwordHash,
     householdId: crypto.randomUUID(),
   }
-  await putHousehold({ id: user.householdId, name: 'Dom', createdAt: now })
+  await putHousehold({ id: user.householdId, name: 'Dom', createdAt: now, plan: 'solo' })
   await putMember({
     id: crypto.randomUUID(),
     householdId: user.householdId,

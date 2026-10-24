@@ -1,5 +1,6 @@
-import { listOpsPeople, putOpsOrder, putOpsPerson, putOpsTask } from './db'
+import { getHousehold, listOpsPeople, listOpsTasks, putOpsOrder, putOpsPerson, putOpsTask } from './db'
 import { enqueueOpsOrder, enqueueOpsPerson, enqueueOpsTask } from './sync'
+import { assigneeAllowed, householdPlan } from './plans'
 import { parseTaskPhrase } from './task-phrase'
 import { supabaseConfigured } from './supabase'
 import type { OpsOrder, OpsPerson, OpsSyncState, OpsTask, OpsTaskStatus } from './types'
@@ -16,24 +17,27 @@ export function nextTaskStatus(status: OpsTaskStatus): OpsTaskStatus {
   return 'new'
 }
 
-export interface AddedTask {
-  task: OpsTask
-  person: OpsPerson | null
-}
+export type PhraseSave = { ok: true; task: OpsTask; person: OpsPerson | null } | { ok: false; reason: 'title' | 'plan' }
 
 export async function addTaskFromPhrase(
   householdId: string,
   createdBy: string,
   phrase: string,
   now = new Date(),
-): Promise<AddedTask | null> {
+): Promise<PhraseSave> {
   const people = await listOpsPeople(householdId)
   const parsed = parseTaskPhrase(phrase, now, people.map((person) => person.name))
-  if (!parsed.title.trim()) return null
+  if (!parsed.title.trim()) return { ok: false, reason: 'title' }
   let person: OpsPerson | null = null
   if (parsed.personName) {
     const folded = fold(parsed.personName)
     person = people.find((item) => fold(item.name) === folded) ?? null
+    const tasks = await listOpsTasks(householdId)
+    const household = await getHousehold(householdId)
+    const nextId = person?.id ?? `new:${folded}`
+    if (!assigneeAllowed(householdPlan(household), tasks.map((task) => task.personId), nextId)) {
+      return { ok: false, reason: 'plan' }
+    }
     if (!person) {
       person = {
         id: crypto.randomUUID(),
@@ -62,7 +66,7 @@ export async function addTaskFromPhrase(
   }
   await putOpsTask(task)
   await enqueueOpsTask(task.id)
-  return { task, person }
+  return { ok: true, task, person }
 }
 
 export async function cycleOpsTask(task: OpsTask): Promise<OpsTask> {

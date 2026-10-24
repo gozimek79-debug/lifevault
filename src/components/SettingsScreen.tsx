@@ -8,6 +8,7 @@ import { supabaseConfigured } from '../lib/supabase'
 import { useI18n } from '../i18n/context'
 import { AppearanceTools } from './AppearanceTools'
 import { ActionRow, PageIntro } from './chrome'
+import { PlansSection } from './PlansSection'
 
 /** Na wąskim ekranie język, motyw, skala i rodzina są tutaj. Na szerokim zostają w pasku. */
 
@@ -24,6 +25,7 @@ export function SettingsScreen() {
   return (
     <div className="flex max-w-3xl flex-col gap-5">
       <PageIntro title={t('settingsTitle')} lede={session?.mode === 'supabase' ? t('sessionCloud') : t('sessionDemo')} />
+      <PlansSection />
       <div className="flex flex-col gap-3 lg:hidden">
         <div className="flex flex-col items-start gap-2">
           <AppearanceTools labeled />

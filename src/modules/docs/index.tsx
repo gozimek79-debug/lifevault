@@ -9,6 +9,7 @@ import {
   refundAnalysisCredit,
   spendAnalysisCredit,
 } from '../../lib/credits'
+import { startCheckout, stripeCheckoutConfigured } from '../../lib/checkout'
 import { downloadBlob, fileSlug, openMailto } from '../../lib/download'
 import { buildPdf } from '../../lib/pdf-export'
 import type { FlagSeverity, ReaderAnalysis, ReaderLang, RedFlag } from '../../lib/reader-analysis'
@@ -18,7 +19,7 @@ import { analyzeDocument } from './analyze'
 /**
  * Czytnik dokumentów. Osobny chunk.
  * Zdjęcie albo PDF, analiza za 1 kredyt, markery na stronie i szkic odpowiedzi.
- * Dokupienie kredytów w demo tylko dopisuje pakiet testowy. Płatności nie ma.
+ * Dokupienie w demo dopisuje pakiet testowy. Checkout Stripe jest tylko, gdy jest adres funkcji.
  */
 
 const LANG_KEY = 'lifevault.readerLang'
@@ -120,12 +121,16 @@ export default function DocsModule() {
     setBusy(true)
     setError(null)
     try {
+      if (session.mode === 'supabase' && stripeCheckoutConfigured()) {
+        window.location.assign(await startCheckout(session.householdId, { kind: 'pack' }))
+        return
+      }
       const next = await grantTestPack(session.householdId)
       setBalance(next)
       setBlocked(false)
       setNotice(t('docsBought', { count: String(TEST_PACK_CREDITS) }))
     } catch {
-      setError(t('docsFailed'))
+      setError(session.mode === 'supabase' && stripeCheckoutConfigured() ? t('planCheckoutFailed') : t('docsFailed'))
     } finally {
       setBusy(false)
     }
@@ -171,7 +176,7 @@ export default function DocsModule() {
         <section className="card flex flex-col gap-3">
           <h2 className="text-2xl font-semibold">{t('docsNoCreditsTitle')}</h2>
           <p>{t('docsNoCreditsBody')}</p>
-          <ActionRow hint={t('docsPaymentOff')}>
+          <ActionRow hint={session?.mode === 'supabase' && stripeCheckoutConfigured() ? t('docsPackHint') : t('docsPaymentOff')}>
             <button className="tap-primary" type="button" onClick={() => void buyPack()} disabled={busy}>
               {t('docsBuy')}
             </button>
@@ -316,7 +321,7 @@ export default function DocsModule() {
       ) : null}
 
       {!showRefusal ? (
-        <ActionRow hint={t('docsPaymentOff')}>
+        <ActionRow hint={session?.mode === 'supabase' && stripeCheckoutConfigured() ? t('docsPackHint') : t('docsPaymentOff')}>
           <button className="tap-ghost" type="button" onClick={() => void buyPack()} disabled={busy}>
             {t('docsBuy')}
           </button>
