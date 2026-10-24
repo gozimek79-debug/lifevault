@@ -1,3 +1,4 @@
+import { extractPdfStrings } from '../modules/docs/analyze'
 import { assertIsoDate } from './iso-date'
 import { parseDocumentText, type DocumentType, type ParsedDocument } from './parse-document'
 import { getSupabase } from './supabase'
@@ -5,8 +6,8 @@ import { getSupabase } from './supabase'
 /**
  * Odczyt dokumentu.
  * Najpierw funkcja extract-document (klucz modelu zostaje na serwerze).
- * Gdy jej nie ma, sieć padnie albo plik to PDF — obraz idzie do Tesseracta, a tekst do parsera.
- * PDF bez funkcji nie jest zgadywany z nazwy pliku.
+ * Gdy jej nie ma albo sieć padnie, obraz idzie do Tesseracta, a tekst do parsera.
+ * PDF bez funkcji: tekst z nieskompresowanych napisów, tym samym odczytem co czytnik.
  */
 
 export type ExtractSource = 'cloud' | 'tesseract' | 'manual'
@@ -41,6 +42,17 @@ export async function extractFromFile(file: Blob, mime: string): Promise<Extract
       text,
       fields: parseDocumentText(text),
       warning: cloudFailed ? 'cloud-failed' : null,
+    }
+  }
+  if (mime === 'application/pdf') {
+    const text = extractPdfStrings(new Uint8Array(await file.arrayBuffer()))
+    if (text.trim()) {
+      return {
+        source: 'manual',
+        text,
+        fields: parseDocumentText(text),
+        warning: cloudFailed ? 'cloud-failed' : null,
+      }
     }
   }
   return { source: 'manual', text: '', fields: parseDocumentText(''), warning: 'pdf-manual' }
@@ -81,7 +93,12 @@ async function ocrImage(blob: Blob): Promise<string> {
   const loaded = (await import('tesseract.js')) as unknown as OcrModule & { default?: OcrModule }
   const factory = typeof loaded.createWorker === 'function' ? loaded.createWorker : loaded.default?.createWorker
   if (!factory) throw new Error('ocr')
-  const worker = await factory('pol+eng')
+  const worker = await factory('pol+eng', 1, {
+    workerPath: `${import.meta.env.BASE_URL}ocr/worker.min.js`,
+    corePath: `${import.meta.env.BASE_URL}ocr`,
+    langPath: `${import.meta.env.BASE_URL}ocr`,
+    workerBlobURL: false,
+  })
   try {
     const result = await worker.recognize(blob)
     return result.data.text ?? ''
@@ -167,8 +184,19 @@ function preferPrice(record: Record<string, unknown>, fallback: ParsedDocument):
   return { amount: Number(amount.toFixed(2)), currency }
 }
 
+interface OcrWorkerOptions {
+  workerPath: string
+  corePath: string
+  langPath: string
+  workerBlobURL: boolean
+}
+
 interface OcrModule {
-  createWorker?: (langs: string) => Promise<{
+  createWorker?: (
+    langs: string,
+    oem?: number,
+    options?: OcrWorkerOptions,
+  ) => Promise<{
     recognize: (image: Blob) => Promise<{ data: { text: string } }>
     terminate: () => Promise<unknown>
   }>

@@ -122,7 +122,12 @@ async function ocrImage(blob: Blob): Promise<string> {
   const loaded = (await import('tesseract.js')) as unknown as OcrModule & { default?: OcrModule }
   const factory = typeof loaded.createWorker === 'function' ? loaded.createWorker : loaded.default?.createWorker
   if (!factory) throw new Error('ocr')
-  const worker = await factory('pol+eng')
+  const worker = await factory('pol+eng', 1, {
+    workerPath: `${import.meta.env.BASE_URL}ocr/worker.min.js`,
+    corePath: `${import.meta.env.BASE_URL}ocr`,
+    langPath: `${import.meta.env.BASE_URL}ocr`,
+    workerBlobURL: false,
+  })
   try {
     const result = await worker.recognize(blob)
     return result.data.text ?? ''
@@ -176,8 +181,19 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary)
 }
 
+interface OcrWorkerOptions {
+  workerPath: string
+  corePath: string
+  langPath: string
+  workerBlobURL: boolean
+}
+
 interface OcrModule {
-  createWorker?: (langs: string) => Promise<{
+  createWorker?: (
+    langs: string,
+    oem?: number,
+    options?: OcrWorkerOptions,
+  ) => Promise<{
     recognize: (image: Blob) => Promise<{ data: { text: string } }>
     terminate: () => Promise<unknown>
   }>
