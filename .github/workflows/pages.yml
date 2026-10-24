@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 jobs:
   deploy:
@@ -20,13 +21,23 @@ jobs:
       - run: npm ci
       - run: npm run build:pages
       - name: Publish gh-pages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          cd dist
-          git init -b gh-pages
+          cp -a dist /tmp/lifevault-dist
+          git checkout --orphan gh-pages-publish
+          git rm -rf .
+          cp -a /tmp/lifevault-dist/. .
           git add -A
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -m "Publish LifeVault pages"
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GITHUB_TOKEN}" push --force origin HEAD:gh-pages
+          git push --force origin HEAD:gh-pages
+      - name: Enable GitHub Pages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          body='{"source":{"branch":"gh-pages","path":"/"}}'
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" > /tmp/pages.json; then
+            printf '%s' "$body" | gh api -X PUT "repos/${GITHUB_REPOSITORY}/pages" --input -
+          else
+            printf '%s' "$body" | gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" --input -
+          fi
