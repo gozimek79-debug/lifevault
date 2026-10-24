@@ -106,11 +106,53 @@ export interface VaultRecord {
   verifier: EncryptedPayload
 }
 
+export type OpsSyncState = 'local' | 'pending' | 'synced' | 'error'
+export type OpsTaskStatus = 'new' | 'doing' | 'done'
+export type OpsOrderSource = 'cloud' | 'tesseract' | 'manual'
+
+/** Imię przy zadaniu firmy. To nie jest zaproszenie e-mail domownika. */
+export interface OpsPerson {
+  id: string
+  householdId: string
+  name: string
+  createdBy: string
+  createdAt: string
+  syncState: OpsSyncState
+}
+
+export interface OpsTask {
+  id: string
+  householdId: string
+  title: string
+  personId: string | null
+  dueAt: string | null
+  status: OpsTaskStatus
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  syncState: OpsSyncState
+}
+
+export interface OpsOrder {
+  id: string
+  householdId: string
+  checklist: string[]
+  extractedLines: string[]
+  source: OpsOrderSource
+  createdBy: string
+  createdAt: string
+  updatedAt: string
+  syncState: OpsSyncState
+}
+
 export type SyncJob =
   | { id: string; kind: 'document'; documentId: string; attempts: number; lastError: string | null }
   | { id: string; kind: 'delete-document'; documentId: string; householdId: string; attempts: number; lastError: string | null }
   | { id: string; kind: 'consent'; consentId: string; attempts: number; lastError: string | null }
   | { id: string; kind: 'invite'; memberId: string; householdId: string; attempts: number; lastError: string | null }
+  | { id: string; kind: 'ops-person'; personId: string; attempts: number; lastError: string | null }
+  | { id: string; kind: 'ops-task'; taskId: string; attempts: number; lastError: string | null }
+  | { id: string; kind: 'ops-order'; orderId: string; attempts: number; lastError: string | null }
 
 export interface DocumentDraft {
   documentType: DocumentType

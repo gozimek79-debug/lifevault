@@ -6,6 +6,7 @@ import { downloadBlob } from '../../lib/download'
 import { enableReminders, scheduleStoredReminders } from '../../lib/notifications'
 import type { PushRecord, Reminder } from '../../lib/types'
 import { useI18n } from '../../i18n/context'
+import { ActionRow, BackLink, PageIntro } from '../../components/chrome'
 import { reminderCopy } from './describe'
 
 export function RemindersScreen({ onBack }: { onBack: () => void }) {
@@ -35,11 +36,9 @@ export function RemindersScreen({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-8">
-      <button className="tap-ghost" type="button" onClick={onBack}>
-        {t('back')}
-      </button>
-      <h1 className="text-3xl font-semibold">{t('remindersTitle')}</h1>
+    <div className="flex flex-col gap-5">
+      <BackLink onClick={onBack}>{t('back')}</BackLink>
+      <PageIntro title={t('remindersTitle')} lede={t('remindersHint')} />
       <button
         className="tap-primary"
         type="button"
@@ -57,13 +56,15 @@ export function RemindersScreen({ onBack }: { onBack: () => void }) {
       >
         {t('enableReminders')}
       </button>
-      <p>{push?.status === 'subscribed' ? t('pushOn') : push?.status === 'pending' ? t('pushPending') : t('pushOff')}</p>
+      <p className="text-sm text-stone-600 dark:text-stone-400">{push?.status === 'subscribed' ? t('pushOn') : push?.status === 'pending' ? t('pushPending') : t('pushOff')}</p>
       {note ? <p role="status">{note}</p> : null}
       {rows.length === 0 ? <p>{t('noReminders')}</p> : null}
       {rows.length > 0 ? (
-        <button className="tap-ghost" type="button" onClick={downloadIcs}>
-          {t('downloadIcs')}
-        </button>
+        <ActionRow hint={t('downloadIcsHint')}>
+          <button className="tap-ghost" type="button" onClick={downloadIcs}>
+            {t('downloadIcs')}
+          </button>
+        </ActionRow>
       ) : null}
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
@@ -72,6 +73,7 @@ export function RemindersScreen({ onBack }: { onBack: () => void }) {
             <span>{t('daysBefore', { days: String(row.daysBefore) })}</span>
             <span>{t('warrantyEnds', { date: row.dueOn })}</span>
             <span>{row.remindOn}</span>
+            <ActionRow hint={t('calendarHint')}>
             <a
               className="tap-ghost"
               href={googleCalendarUrl(
@@ -84,6 +86,7 @@ export function RemindersScreen({ onBack }: { onBack: () => void }) {
             >
               {t('googleCalendar')}
             </a>
+            </ActionRow>
           </li>
         ))}
       </ul>

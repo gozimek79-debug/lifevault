@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Skala czcionki jest jedną zmienną na <html>, więc całe rem (przyciski też) rośnie razem z tekstem. */
+/* Skala czcionki jest jedną zmienną na <html>. Tekst strony rośnie.
+   Pasek u góry jest w pikselach, żeby nie zamienił się w rząd płyt. */
 :root {
   --lv-scale: 1;
   color-scheme: light;
@@ -13,15 +14,16 @@ html.dark {
 }
 
 html {
-  font-size: calc(18px * var(--lv-scale));
+  font-size: calc(16px * var(--lv-scale));
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
   font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  @apply bg-stone-100 text-stone-900 dark:bg-stone-950 dark:text-stone-100;
+  @apply bg-[#f3f0e8] text-stone-900 dark:bg-stone-950 dark:text-stone-100;
 }
 
 button,
@@ -32,31 +34,136 @@ textarea {
 }
 
 @layer components {
+  .wordmark {
+    font-family: Georgia, "Iowan Old Style", Palatino, "Palatino Linotype", serif;
+    letter-spacing: -0.03em;
+  }
+
   .tap {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-center font-semibold;
-    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-900;
+    @apply inline-flex w-fit max-w-full shrink-0 items-center justify-center gap-2 self-start rounded-full px-4 py-2 text-center text-sm font-semibold leading-snug;
+    min-height: 2.5rem;
+    @apply focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .tap-primary {
-    @apply tap bg-teal-900 text-white dark:bg-teal-400 dark:text-stone-950 dark:focus-visible:outline-teal-200;
+    @apply tap bg-teal-800 text-white shadow-sm dark:bg-teal-300 dark:text-stone-950 dark:focus-visible:outline-teal-200;
   }
 
   .tap-ghost {
-    @apply tap bg-white text-stone-900 ring-1 ring-stone-300 dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-600;
+    @apply tap bg-white text-stone-800 ring-1 ring-stone-300 dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-600;
+  }
+
+  .text-link {
+    @apply inline-flex w-fit text-sm font-semibold text-teal-800 underline-offset-4 hover:underline dark:text-teal-300;
   }
 
   .field {
-    @apply w-full min-h-12 rounded-2xl bg-white px-4 py-3 text-stone-900 ring-1 ring-stone-300;
-    @apply placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-teal-900;
-    @apply dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-600 dark:focus:ring-teal-300;
+    @apply w-full rounded-xl bg-white px-3 py-2 text-stone-900 ring-1 ring-stone-300;
+    min-height: 2.75rem;
+    @apply placeholder:text-stone-500 focus:outline-none focus:ring-2 focus:ring-teal-800;
+    @apply dark:bg-stone-900 dark:text-stone-100 dark:ring-stone-700 dark:focus:ring-teal-300;
   }
 
   .card {
-    @apply rounded-3xl bg-white p-4 text-left ring-1 ring-stone-200 dark:bg-stone-900 dark:ring-stone-700;
+    @apply rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-stone-200/80 dark:bg-stone-900 dark:ring-stone-800;
   }
 
   .label {
-    @apply mb-1 block font-semibold text-stone-800 dark:text-stone-200;
+    @apply mb-1 block text-sm font-semibold text-stone-700 dark:text-stone-300;
+  }
+
+  .action-row {
+    @apply flex max-w-3xl flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-stone-200/80 py-3 dark:border-stone-800;
+  }
+
+  .action-row > p {
+    @apply m-0 min-w-[12rem] flex-1 text-sm leading-snug text-stone-600 dark:text-stone-400;
+  }
+
+  .form-stack {
+    @apply flex w-full max-w-xl flex-col gap-3;
+  }
+
+  .nav-link {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 14px;
+    line-height: 1.2;
+    font-weight: 600;
+    color: #57534e;
+  }
+
+  .nav-link:hover {
+    background: rgba(255, 255, 255, 0.8);
+    color: #1c1917;
+  }
+
+  .nav-on {
+    background: #fff;
+    color: #1c1917;
+    box-shadow: 0 1px 2px rgba(28, 25, 23, 0.06);
+    outline: 1px solid #e7e5e4;
+  }
+
+  .dark .nav-link {
+    color: #d6d3d1;
+  }
+
+  .dark .nav-link:hover,
+  .dark .nav-on {
+    background: #1c1917;
+    color: #fafaf9;
+    outline-color: #44403c;
+  }
+
+  .tool {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    border-radius: 999px;
+    padding: 0 10px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1;
+    color: #44403c;
+    background: transparent;
+  }
+
+  .tool:focus-visible {
+    outline: 2px solid #115e59;
+    outline-offset: 2px;
+  }
+
+  .tool-on {
+    background: #fff;
+    color: #1c1917;
+    box-shadow: 0 1px 2px rgba(28, 25, 23, 0.08);
+  }
+
+  .dark .tool {
+    color: #e7e5e4;
+  }
+
+  .dark .tool-on {
+    background: #292524;
+    color: #fafaf9;
+  }
+
+  .seg {
+    @apply inline-flex w-fit rounded-full bg-stone-200/80 p-1 dark:bg-stone-800;
+  }
+
+  .seg button {
+    @apply rounded-full px-3 py-1 text-sm font-semibold;
+  }
+
+  .seg-on {
+    @apply bg-white text-stone-900 shadow-sm dark:bg-stone-950 dark:text-stone-100;
+  }
+
+  .seg-off {
+    @apply text-stone-600 dark:text-stone-300;
   }
 }

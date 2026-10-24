@@ -4,10 +4,16 @@ import {
   enqueueJob,
   getConsent,
   getDocument,
+  getOpsOrder,
+  getOpsPerson,
+  getOpsTask,
   listJobs,
   listMembers,
   listReminders,
   putDocument,
+  putOpsOrder,
+  putOpsPerson,
+  putOpsTask,
   removeJob,
 } from './db'
 import { getSupabase, supabaseConfigured } from './supabase'
@@ -50,24 +56,61 @@ export async function enqueueDelete(documentId: string, householdId: string): Pr
   await requestBackgroundSync()
 }
 
+export async function enqueueOpsPerson(personId: string): Promise<void> {
+  if (!supabaseConfigured()) return
+  await enqueueJob({ id: `ops-person:${personId}`, kind: 'ops-person', personId, attempts: 0, lastError: null })
+  await requestBackgroundSync()
+}
+
+export async function enqueueOpsTask(taskId: string): Promise<void> {
+  if (!supabaseConfigured()) return
+  await enqueueJob({ id: `ops-task:${taskId}`, kind: 'ops-task', taskId, attempts: 0, lastError: null })
+  await requestBackgroundSync()
+}
+
+export async function enqueueOpsOrder(orderId: string): Promise<void> {
+  if (!supabaseConfigured()) return
+  await enqueueJob({ id: `ops-order:${orderId}`, kind: 'ops-order', orderId, attempts: 0, lastError: null })
+  await requestBackgroundSync()
+}
+
 export async function flushQueue(): Promise<void> {
   if (!supabaseConfigured() || !navigator.onLine) return
   const jobs = await listJobs()
-  for (const job of jobs) {
+  const ordered = [...jobs].sort((a, b) => jobRank(a.kind) - jobRank(b.kind))
+  for (const job of ordered) {
     try {
       if (job.kind === 'document') await pushDocument(job.documentId)
       else if (job.kind === 'delete-document') await pushDelete(job.documentId, job.householdId)
       else if (job.kind === 'consent') await pushConsent(job.consentId)
-      else await pushInvite(job.memberId, job.householdId)
+      else if (job.kind === 'invite') await pushInvite(job.memberId, job.householdId)
+      else if (job.kind === 'ops-person') await pushOpsPerson(job.personId)
+      else if (job.kind === 'ops-task') await pushOpsTask(job.taskId)
+      else await pushOpsOrder(job.orderId)
       await removeJob(job.id)
     } catch (error) {
       if (job.kind === 'document') {
         const failed = await getDocument(job.documentId)
         if (failed) await putDocument({ ...failed, syncState: 'error' })
+      } else if (job.kind === 'ops-person') {
+        const failed = await getOpsPerson(job.personId)
+        if (failed) await putOpsPerson({ ...failed, syncState: 'error' })
+      } else if (job.kind === 'ops-task') {
+        const failed = await getOpsTask(job.taskId)
+        if (failed) await putOpsTask({ ...failed, syncState: 'error' })
+      } else if (job.kind === 'ops-order') {
+        const failed = await getOpsOrder(job.orderId)
+        if (failed) await putOpsOrder({ ...failed, syncState: 'error' })
       }
       await enqueueJob({ ...job, attempts: job.attempts + 1, lastError: shortError(error) })
     }
   }
+}
+
+function jobRank(kind: 'document' | 'delete-document' | 'consent' | 'invite' | 'ops-person' | 'ops-task' | 'ops-order'): number {
+  if (kind === 'ops-person') return 0
+  if (kind === 'ops-task') return 2
+  return 1
 }
 
 export async function searchRemote(householdId: string, query: string): Promise<VaultDocument[]> {
@@ -171,6 +214,78 @@ async function pushConsent(consentId: string): Promise<void> {
     { onConflict: 'id' },
   )
   if (error) throw new Error('consent')
+}
+
+async function pushOpsPerson(personId: string): Promise<void> {
+  const supabase = getSupabase()
+  const person = await getOpsPerson(personId)
+  if (!supabase || !person) return
+  const { error } = await supabase.from('ops_people').upsert(
+    {
+      id: person.id,
+      household_id: person.householdId,
+      name: person.name,
+      created_by: person.createdBy || null,
+      created_at: person.createdAt,
+    },
+    { onConflict: 'id' },
+  )
+  if (error) throw new Error('ops-person')
+  const latest = await getOpsPerson(personId)
+  await putOpsPerson({ ...(latest ?? person), syncState: 'synced' })
+}
+
+async function pushOpsTask(taskId: string): Promise<void> {
+  const supabase = getSupabase()
+  const task = await getOpsTask(taskId)
+  if (!supabase || !task) return
+  const { error } = await supabase.from('ops_tasks').upsert(
+    {
+      id: task.id,
+      household_id: task.householdId,
+      title: task.title,
+      person_id: task.personId,
+      due_at: task.dueAt,
+      status: task.status,
+      created_by: task.createdBy || null,
+      created_at: task.createdAt,
+      updated_at: task.updatedAt,
+    },
+    { onConflict: 'id' },
+  )
+  if (error) throw new Error('ops-task')
+  const latest = await getOpsTask(taskId)
+  if (latest && latest.updatedAt !== task.updatedAt) {
+    await putOpsTask({ ...latest, syncState: 'pending' })
+    throw new Error('stale')
+  }
+  await putOpsTask({ ...(latest ?? task), syncState: 'synced' })
+}
+
+async function pushOpsOrder(orderId: string): Promise<void> {
+  const supabase = getSupabase()
+  const order = await getOpsOrder(orderId)
+  if (!supabase || !order) return
+  const { error } = await supabase.from('ops_orders').upsert(
+    {
+      id: order.id,
+      household_id: order.householdId,
+      checklist: order.checklist,
+      extracted_lines: order.extractedLines,
+      source: order.source,
+      created_by: order.createdBy || null,
+      created_at: order.createdAt,
+      updated_at: order.updatedAt,
+    },
+    { onConflict: 'id' },
+  )
+  if (error) throw new Error('ops-order')
+  const latest = await getOpsOrder(orderId)
+  if (latest && latest.updatedAt !== order.updatedAt) {
+    await putOpsOrder({ ...latest, syncState: 'pending' })
+    throw new Error('stale')
+  }
+  await putOpsOrder({ ...(latest ?? order), syncState: 'synced' })
 }
 
 async function pushInvite(memberId: string, householdId: string): Promise<void> {

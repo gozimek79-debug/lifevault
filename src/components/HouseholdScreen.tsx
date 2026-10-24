@@ -4,6 +4,7 @@ import { getHousehold, listMembers } from '../lib/db'
 import { inviteByEmail, renameHousehold } from '../lib/household'
 import type { HouseholdMember } from '../lib/types'
 import { useI18n } from '../i18n/context'
+import { ActionRow, PageIntro } from './chrome'
 
 export function HouseholdScreen() {
   const { t } = useI18n()
@@ -50,16 +51,18 @@ export function HouseholdScreen() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-3xl font-semibold">{t('householdTitle')}</h1>
-      <form className="flex flex-col gap-3" onSubmit={(event) => void onRename(event)}>
+    <div className="flex max-w-3xl flex-col gap-5">
+      <PageIntro title={t('householdTitle')} lede={t('saveNameHint')} />
+      <form className="form-stack" onSubmit={(event) => void onRename(event)}>
         <label className="label" htmlFor="home-name">
           {t('householdName')}
         </label>
         <input id="home-name" className="field" value={name} onChange={(event) => setName(event.target.value)} />
-        <button className="tap-ghost" type="submit">
-          {t('saveName')}
-        </button>
+        <ActionRow hint={t('saveNameHint')}>
+          <button className="tap-ghost" type="submit">
+            {t('saveName')}
+          </button>
+        </ActionRow>
       </form>
       <h2 className="text-2xl font-semibold">{t('members')}</h2>
       <ul className="flex flex-col gap-2">
@@ -75,7 +78,7 @@ export function HouseholdScreen() {
           </li>
         ))}
       </ul>
-      <form className="flex flex-col gap-3" onSubmit={(event) => void onInvite(event)}>
+      <form className="form-stack" onSubmit={(event) => void onInvite(event)}>
         <label className="label" htmlFor="invite-email">
           {t('inviteEmail')}
         </label>
@@ -83,6 +86,7 @@ export function HouseholdScreen() {
         <button className="tap-primary" type="submit">
           {t('invite')}
         </button>
+        <p className="text-sm text-stone-600 dark:text-stone-400">{t('inviteHint')}</p>
       </form>
       {note ? <p role="status">{note}</p> : null}
     </div>
